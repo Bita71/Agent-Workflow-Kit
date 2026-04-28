@@ -1,0 +1,63 @@
+---
+alwaysApply: true
+---
+
+# Cursor Repo Rules
+
+## Core
+
+- Make narrow changes tied directly to the user's request.
+- Do not perform opportunistic refactors.
+- If the user explicitly names a command or agent, use it.
+- For implementation work, ask 1-3 blocking questions only when the task can go materially wrong without the answers.
+- If the task is clear, do not ask questions.
+- If there are multiple plausible interpretations, ask a short clarifying question instead of silently choosing.
+- Do not add dependencies, commit, or push without an explicit request.
+- Avoid speculative abstractions, configurability, fallbacks, and edge-case handling unless needed for the task.
+- When a solution starts growing, simplify first.
+- For multi-step work, define verifiable done criteria before editing.
+
+## Architecture
+
+- Prefer existing project patterns, helpers, and module boundaries.
+- Keep business logic out of shared utility layers unless the repository explicitly allows it.
+- Import through public APIs when the project has them.
+- Do not leak internal implementation paths across module boundaries.
+- Update public exports and documentation when public contracts change.
+
+## TypeScript And Data
+
+- Keep strict TypeScript: avoid `any`, meaningless casts, and unsafe non-null assertions.
+- Prefer `unknown`, `satisfies`, and explicit contracts where useful.
+- Treat external data as untrusted: API, storage, URL params, and environment values may be missing or malformed.
+- Keep DTOs, query keys, and data mapping close to the data source.
+
+## UI And Product Text
+
+- Prefer existing UI primitives before adding custom controls.
+- Do not break accessibility contracts.
+- Avoid magic strings in UI where the project has localization or copy conventions.
+- Keep React hooks predictable: do not use effects for derived state or event-handler logic.
+- Prefer CSS for layout, styling, and animation when appropriate.
+- Use existing design tokens instead of hardcoded colors and spacing where the project provides them.
+
+## Code Style
+
+- Keep data flow simple and direct.
+- Name variables clearly; avoid vague names like `data`, `result`, `temp`, or one-letter names outside tiny scopes.
+- Comments should explain why, not what.
+- Do not introduce dead code or commented-out code.
+- Use structured parsers and APIs instead of ad hoc string manipulation when reasonable.
+
+## Documentation
+
+- Add concise documentation for new public APIs.
+- Update relevant README or usage docs when behavior or public contracts change.
+- Do not document implementation details that are likely to drift.
+
+## Verification
+
+- After substantive edits, run the repository's standard check command.
+- Before a pull request, run the repository's production or full validation command if one exists.
+- Check import boundaries, public API exports, user-facing text, and types.
+- After code changes, run `verifier` or `/verify` as the final step.
