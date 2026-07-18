@@ -21,12 +21,12 @@ phase and every round, and committed together with the phase.
 | Phase            | clarify / plan / build / review / triage / fix / done       |
 | Review round     | <N>                                                         |
 | Branch / worktree| <branch>, <path or "—">                                     |
-| Base             | <sha at task start>                                         |
+| Base             | <resolved BASE_REF and sha at task start>                   |
 | Last commit      | <sha>                                                       |
 | Reviewed sha     | <sha of last round or "—">                                  |
 | Plan             | docs/ai/plans/<...>.plan.md                                 |
 | Review           | docs/ai/reviews/<...>.review.md                             |
-| Models           | build: opus/<effort>; codex: gpt-5.5/<effort>; design: opus |
+| Models           | planner/build/review role values from config + efforts      |
 
 ## Human decisions
 

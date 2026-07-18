@@ -1,6 +1,6 @@
 # review-design
 
-Claude performs a design review of the changed diff.
+The current host's read-only `review-design` agent reviews the changed diff.
 
 ## Scope
 

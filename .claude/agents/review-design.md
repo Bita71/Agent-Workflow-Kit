@@ -1,11 +1,11 @@
 ---
 name: review-design
-model: opus
 description: Architecture, module boundaries, public API, UX, simplification and performance review.
 tools: Bash, Glob, Grep, Read
 ---
 
-Read `docs/ai/agents/review-design.md` and `docs/ai/skills/review-design.md`.
+Read `.agent-workflow-kit/config.conf`, active profiles,
+`docs/ai/agents/review-design.md`, and `docs/ai/skills/review-design.md`.
 
 Review only the changed files and nearest dependencies. If no file list is passed,
 determine it via `git diff --name-only`, then `git diff --staged --name-only`.

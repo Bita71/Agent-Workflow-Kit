@@ -1,64 +1,54 @@
 # Coding Rules
 
-> **Template — fill this in for your repository.** The skills, commands, and agent
-> roles all reference this file for language/framework/UI conventions. `project.md`
-> holds the tool-agnostic invariants; this file holds the ones specific to your
-> stack. Delete the guidance comments once you've written the real rules. Keep it
-> tight — rules the agent can follow without guessing, not a style essay.
+This is the repository-owned overlay over the active profiles. The defaults below
+are safe for an uncustomized project; replace or extend them only with rules that
+an agent can verify from this repository.
 
-## Architecture & boundaries
+## Architecture and boundaries
 
-<Describe your architecture: layers/modules, allowed dependency directions, what a
-module's public API is and how it's exported, what may not import what. If you use
-a layered scheme (hexagonal, clean, layered, etc.), state the layer order and the
-import rules the agent must not violate.>
+- Discover existing modules, packages, layers, and public entrypoints before
+  editing them.
+- Preserve the repository's dependency direction and visibility rules.
+- Do not create a new boundary or abstraction unless the task requires it.
 
-## Language & types
+## Language and toolchain
 
-<TypeScript/other: no new `any`, no unsafe casts without justification, no
-non-null assertion without a guarantee, keep DTO types intact across boundaries.
-State your strictness expectations.>
+- Match the language version, strictness, formatter, linter, and build system
+  already configured in the repository.
+- Do not bypass the type system, compiler, validator, or policy engine without a
+  documented guarantee and a local reason.
+- Prefer project-supported APIs over introducing a parallel toolchain.
 
-## Framework / UI
+## Interfaces and external behavior
 
-<React/Vue/other component rules: required UI states (loading, error, empty,
-disabled, success), effect/state discipline, list keys, avoiding needless
-re-renders. Component/presentational conventions and where logic lives.>
+- Preserve public contracts unless the task explicitly changes them.
+- Treat compatibility, migration, and failure behavior as part of a contract.
+- Apply interface/UI-specific rules only when an active profile makes them
+  relevant.
 
-## Styling
+## Data and domain behavior
 
-<Styling system: use design tokens / CSS variables, no hardcoded colors or
-spacing, where styles live, class-naming or module conventions.>
-
-## User-facing text (i18n)
-
-<No hardcoded UI strings — route them through your i18n layer. Naming of keys /
-namespaces, where translations live, how to reference them.>
-
-## Dates, money & formatting
-
-<Use your project's date library, not the platform primitive, if you have one.
-Money/decimal handling library and rounding conventions. Shared formatters to
-reuse instead of re-implementing.>
+- Preserve units, precision, nullability, ownership, and validation across
+  boundaries.
+- Do not invent domain policy. Read it from code, tests, documentation, or an
+  active profile; ask when it remains ambiguous.
 
 ## Code style
 
-<Naming, file layout, colocated tests/stories, comment density. Match the
-surrounding code. Point at the formatter/linter config rather than restating it.>
+- Match neighboring naming, file layout, test placement, and comment density.
+- Point to formatter/linter configuration instead of restating it here.
+- Comments explain constraints and intent, not obvious syntax.
 
 ## Reuse ladder
 
-Before writing new non-trivial code, walk this ladder top-down and stop at the
-first step that applies:
+Before writing non-trivial code, walk this list top-down and stop at the first
+step that applies:
 
-1. **Is it needed at all?** If the requirement doesn't follow from the task, don't
-   write it (YAGNI).
-2. **Already in the codebase?** Reuse a shared primitive, existing hook/helper, or
-   a neighbouring module's pattern.
-3. **Solved by the platform/language?** A native API or a language feature instead
-   of a hand-rolled wrapper.
-4. **Solved by an installed dependency?** Use it. Don't add a new dependency.
-5. **Can it be shorter?** If one expression closes the task, don't grow an
-   abstraction.
-6. **Only then** write the minimal implementation for the current case, no
-   speculative generalization.
+1. **Is it needed?** If it does not follow from the task, do not write it.
+2. **Does it already exist?** Reuse a local primitive, helper, or neighboring
+   pattern.
+3. **Does the platform or language solve it?** Prefer the supported standard.
+4. **Does an installed dependency solve it?** Use it; do not add a dependency.
+5. **Can it be simpler?** Avoid an abstraction when a direct local change closes
+   the task.
+6. **Only then** write the minimal implementation for the current case.

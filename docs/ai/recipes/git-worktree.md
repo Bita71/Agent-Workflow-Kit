@@ -1,7 +1,7 @@
 # Git Worktree: isolated workspace workflow
 
 An isolated checkout for work that must not touch the current `REPO_ROOT`:
-experiments, parallel tasks, comparing approaches. If a normal branch in the main
+experiments, parallel tasks, comparing approaches. If a normal branch in the base
 workspace is enough, you do not need a worktree. Create one only when the user
 asks. Official docs: [git worktree](https://git-scm.com/docs/git-worktree).
 
@@ -9,10 +9,11 @@ asks. Official docs: [git worktree](https://git-scm.com/docs/git-worktree).
 
 | Name                 | Meaning                                                         |
 | -------------------- | -------------------------------------------------------------- |
-| `REPO_ROOT`          | The main checkout (`git rev-parse --show-toplevel`).           |
+| `REPO_ROOT`          | The base checkout (`git rev-parse --show-toplevel`).           |
 | `WORKTREE_PATH`      | A separate checkout created via `git worktree add`.            |
 | `WORKTREE_ID`        | A short session id (`<name>-<8hex>`).                          |
-| `WORKTREE_START_REF` | The ref for `git worktree add` (`HEAD`, `main`, `origin/main`, SHA). |
+| `BASE_REF`           | Resolved from config (`origin/HEAD`, current branch, or pin).  |
+| `WORKTREE_START_REF` | The ref for `git worktree add` (`HEAD`, `BASE_REF`, or SHA).   |
 
 ```text
 create worktree  -> edits only in WORKTREE_PATH
@@ -28,8 +29,9 @@ in `REPO_ROOT` for this task, except during the apply step. Record the mapping
 
 ```bash
 set -euo pipefail
+BASE_REF="<resolved BASE_REF from config>"
 WORKTREE_ID="<name>-<8hex>"
-WORKTREE_START_REF="${WORKTREE_START_REF:-HEAD}"
+WORKTREE_START_REF="${WORKTREE_START_REF:-$BASE_REF}"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 REPO_BASENAME="$(basename "$REPO_ROOT")"
 WORKTREE_DIR="$(dirname "$REPO_ROOT")/${REPO_BASENAME}-worktrees/$WORKTREE_ID"
@@ -47,8 +49,8 @@ touch `REPO_ROOT`. Report the mapping, `HEAD_COMMIT`, and setup status in the ch
 ## 2. Apply
 
 Apply **only when the user explicitly asked** to move the diff into `REPO_ROOT`.
-Merging main into the worktree, resolving conflicts, and running checks are not
-yet apply; do not move changes into main on your own initiative.
+Merging the resolved base into the worktree, resolving conflicts, and running
+checks are not apply; do not move changes into the base checkout on your own.
 
 It moves **tracked** changes via a temporary commit + `cherry-pick --no-commit`,
 and **untracked** changes by copying. In `REPO_ROOT` the changes stay unstaged: the
@@ -56,15 +58,15 @@ user reviews the diff and commits it. After apply, ask whether to delete the
 worktree.
 
 A linked worktree's `git rev-parse --git-common-dir` can return an absolute path,
-while main's is a relative `.git`, so the paths are normalized first
+while the base checkout's is a relative `.git`, so paths are normalized first
 (`resolve_git_common`) rather than a naive `cd $(git rev-parse --git-common-dir)`.
 
 ```bash
 set -euo pipefail
 SOURCE_WORKTREE_PATH="<source>"
-MAIN_WORKTREE_PATH="<main>"
+BASE_WORKTREE_PATH="<base-checkout>"
 SOURCE_ABS="$(cd "$SOURCE_WORKTREE_PATH" && pwd -P)"
-MAIN_ABS="$(cd "$MAIN_WORKTREE_PATH" && pwd -P)"
+BASE_ABS="$(cd "$BASE_WORKTREE_PATH" && pwd -P)"
 
 resolve_git_common() {
   local dir="$1"
@@ -79,9 +81,9 @@ resolve_git_common() {
 }
 
 SOURCE_COMMON="$(resolve_git_common "$SOURCE_ABS")"
-MAIN_COMMON="$(resolve_git_common "$MAIN_ABS")"
-if [ "$SOURCE_COMMON" != "$MAIN_COMMON" ]; then
-  echo "ERROR: source and main do not share the same repository." >&2
+BASE_COMMON="$(resolve_git_common "$BASE_ABS")"
+if [ "$SOURCE_COMMON" != "$BASE_COMMON" ]; then
+  echo "ERROR: source and base checkout do not share the same repository." >&2
   exit 1
 fi
 
@@ -100,40 +102,41 @@ if [ "$HAS_TRACKED" = true ]; then
   git -C "$SOURCE_ABS" add -u -- .
   git -C "$SOURCE_ABS" commit -m "tmp: worktree apply snapshot" --no-verify --allow-empty
   TEMP_COMMIT="$(git -C "$SOURCE_ABS" rev-parse HEAD)"
-  git -C "$MAIN_ABS" cherry-pick --no-commit "$TEMP_COMMIT" || true
-  git -C "$MAIN_ABS" reset HEAD -- . >/dev/null 2>&1 || true
+  git -C "$BASE_ABS" cherry-pick --no-commit "$TEMP_COMMIT" || true
+  git -C "$BASE_ABS" reset HEAD -- . >/dev/null 2>&1 || true
   git -C "$SOURCE_ABS" reset --mixed HEAD~1 >/dev/null 2>&1
 fi
 
 if [ -n "$UNTRACKED_FILES" ]; then
   echo "$UNTRACKED_FILES" | while IFS= read -r file_path; do
     [ -z "$file_path" ] && continue
-    mkdir -p "$(dirname "$MAIN_ABS/$file_path")"
-    cp "$SOURCE_ABS/$file_path" "$MAIN_ABS/$file_path"
+    mkdir -p "$(dirname "$BASE_ABS/$file_path")"
+    cp "$SOURCE_ABS/$file_path" "$BASE_ABS/$file_path"
   done
 fi
 
-git -C "$MAIN_ABS" status --short
+git -C "$BASE_ABS" status --short
 ```
 
-### If main moved ahead
+### If the base ref moved ahead
 
-First understand what the branch actually did — and whether main did the same thing.
+First understand what the branch did and whether the resolved base did the same.
 
-Measure the branch's contribution with **three-dot**: `git diff main...HEAD --stat`
-(from the merge-base). Two-dot `git diff main --stat` mixes in everything main
+Measure the branch's contribution with **three-dot**:
+`git diff "$BASE_REF"...HEAD --stat` (from the merge-base). Two-dot mixes in
+everything the base
 gained since the merge-base: a lagging branch looks gigantic (342 files instead of
 the real 16) and seems hopeless.
 
 ```bash
-git merge-base main HEAD                    # divergence point
-git diff main...HEAD --stat                 # the BRANCH's contribution (three-dot)
-git log HEAD..main --oneline                # what main gained
-git log "$(git merge-base main HEAD)..main" --oneline -- <files from three-dot>
+git merge-base "$BASE_REF" HEAD
+git diff "$BASE_REF"...HEAD --stat
+git log HEAD.."$BASE_REF" --oneline
+git log "$(git merge-base "$BASE_REF" HEAD)..$BASE_REF" --oneline -- <files>
 ```
 
 The last command is the key one: three-dot tells you what the **branch** did, but
-says nothing about whether **main did the same thing independently**. If main
+says nothing about whether **the base did the same thing independently**. If it
 touched the same files, check concretely (grep the task's target pattern across the
 brief's files). A partially duplicated branch is normal: the unique part can be
 valuable, the overlapping part is already stale. Decide "update or discard" from
@@ -143,52 +146,51 @@ The exact conflict list comes from a trial merge; it is fully reversible:
 
 ```bash
 git tag -f backup/<slug>-pre-update HEAD  # rollback: git reset --hard backup/<slug>-pre-update
-git merge --no-commit --no-ff main
+git merge --no-commit --no-ff "$BASE_REF"
 git diff --name-only --diff-filter=U      # the real conflicts
 git merge --abort                         # if you decide not to continue
 ```
 
-Resolve conflicts **concretely, not by taking one side wholesale**: neither "the
-branch is stale → take main" nor "the branch is newer → take the branch" works when
-both did the same work. Justify from the surrounding code (route builders, call
-sites, tests), not from commit recency. The normal outcome is some files from main,
-some from the branch.
+Resolve conflicts concretely, not by taking one side wholesale. Neither “the
+branch is stale -> take base” nor “the branch is newer -> take branch” works when
+both did the same work. Justify from surrounding code, not commit recency.
 
-`cherry-pick` conflicts **only if intermediate main commits touched the applied
-files** — the trigger for a rebase is file overlap, not ancestry:
+`cherry-pick` conflicts only if intermediate base commits touched the applied
+files — the trigger for a rebase is file overlap, not ancestry:
 
 ```bash
-git -C <worktree> diff --stat <worktree-base> <main-HEAD> -- <applied files>
+git -C <worktree> diff --stat <worktree-base> <base-HEAD> -- <applied files>
 ```
 
 Empty → apply as-is, no rebase needed. Non-empty → **do not leave conflict markers
-in main**, sync the worktree ahead of time:
+in the base checkout; sync the worktree first:
 
 1. In the worktree, commit only the needed files (a non-merge commit,
    `--no-gpg-sign`); do not include stray edits (e.g. formatter drift) —
    `git add -- "${FILES[@]}"`.
-2. `git -C <worktree> -c commit.gpgsign=false rebase <main-tip>`.
+2. `git -C <worktree> -c commit.gpgsign=false rebase <base-tip>`.
 3. Resolve conflicts **only with full confidence** in both sides (read both
    versions, assemble the merged file). If you are not confident —
-   `rebase --abort`, do not touch main, tell the user. No `<<<<<<<` markers should
+   `rebase --abort`, do not touch the base checkout, tell the user. No conflict
+   markers should
    remain in the source tree — but their absence does **not** mean the merge is
    correct (see the pitfall about duplicated insertions).
 4. `<check>` in the worktree — green.
 5. Apply: now `cherry-pick --no-commit` passes cleanly
-   (`git merge-base --is-ancestor <main-HEAD> <worktree-HEAD>` = true).
+   (`git merge-base --is-ancestor <base-HEAD> <worktree-HEAD>` = true).
 
 ### No-commit variant (contribution staged, HEAD = merge-base)
 
 Night-runner branches (see `docs/ai/recipes/night-runner.md`) often hold the whole
 contribution **staged, but uncommitted** (`git rev-parse HEAD` ==
-`git merge-base HEAD main`). If asked not to commit, instead of "commit + rebase":
+`git merge-base HEAD "$BASE_REF"`). If asked not to commit, instead of commit + rebase:
 
-1. `git stash push -m wip` → `git merge main` (fast-forwards to the main tip).
-2. `git stash pop` → the edits land on top of main, conflicts surface in the
+1. `git stash push -m wip` -> `git merge "$BASE_REF"`.
+2. `git stash pop` -> the edits land on top of the base, conflicts surface in the
    working tree.
 3. Resolve conflicts only with full confidence in both sides (otherwise
    `git checkout -- .` + `git stash pop` cannot be undone — assess the risk first).
-4. Typecheck + lint. Result: HEAD on main, the contribution back in the tree, no new
+4. Run applicable checks. Result: HEAD on the base tip, contribution restored, no new
    commits.
 
 A plain pop leaves the edits **unstaged** — if you need parity with the original
@@ -213,7 +215,7 @@ git worktree prune
 - **Edits go to `REPO_ROOT` while checks run in the worktree → false green.** The
   session is auto-started in the worktree (bash cwd = `WORKTREE_PATH`), but
   Read/Edit/Write take absolute paths from context (CLAUDE.md, earlier messages),
-  and those often point at `REPO_ROOT`. Then the diff goes to main while typecheck
+  and those often point at `REPO_ROOT`. Then the diff goes to the base checkout while checks
   / tests in the worktree run over the old code and "pass". The tell: you made an
   edit, but `git -C <worktree> status` does not show it. Write to paths under
   `WORKTREE_PATH` and verify in the same tree you edited.
@@ -230,13 +232,13 @@ git worktree prune
     item, an overwritten field, two requests).
 
   After merging branches that did **the same work in parallel**, `<check>` is
-  mandatory but not sufficient — read `git diff main...HEAD` with your own eyes.
+  mandatory but not sufficient; read `git diff "$BASE_REF"...HEAD` yourself.
   Top-level duplicate declarations are found by this detector (it counts by
   **name**, so it also catches a `const querySchema` doubled by two **different**
   versions of the schema — the most dangerous case, where a random winner prevails):
 
   ```bash
-  git diff --name-only main...HEAD -- '<src-glob>/*.ts' '<src-glob>/*.tsx' | while read -r f; do
+  git diff --name-only "$BASE_REF"...HEAD -- '<src-glob>/*.ts' '<src-glob>/*.tsx' | while read -r f; do
     [ -f "$f" ] || continue
     awk '{ l=$0; sub(/^export +(default +)?/,"",l)
            if (l ~ /^import .*from /) { imp[l]++ }
@@ -263,16 +265,16 @@ git worktree prune
   `branch -D`) must run without the sandbox.
 - **Installing dependencies in a fresh worktree** under the sandbox fails with
   `EPERM` on the link step — run setup without the sandbox. **Do not symlink
-  `node_modules` from main**: build/test tools write inside `node_modules` (temp
-  caches), and a write through the symlink lands in main and is blocked by the
+  a dependency directory from the base checkout**: tools may write caches inside
+  it, and a write through the symlink lands in the base checkout and is blocked by the
   sandbox. Only a full, real install.
-- **`<check>` in main after apply** can fail under the sandbox with `EPERM` on a
+- **`CHECK_COMMAND` in the base checkout after apply** can fail under the sandbox with `EPERM` on a
   tool's temp cache while the session's working directory is still the worktree. Run
   without the sandbox, or after deleting the worktree.
 - **`<check>` runs the formatter** → it may reformat unrelated files. After the
   checks, review `git status` and revert anything that is not yours
   (`git checkout -- <file>`).
-- **`<check>` in main scans sibling worktrees**: a formatter without a path argument
+- **`CHECK_COMMAND` in the base checkout scans sibling worktrees**: a formatter without a path argument
   walks the whole tree from cwd, including sibling worktree directories. A broken
   file in **someone else's** worktree fails the formatter, and a kill-others flag
   takes down the rest of the checks (non-zero exit) — it looks like your diff broke.
@@ -281,7 +283,7 @@ git worktree prune
   do not fix the other worktree.
 - **Lint on a detached HEAD** can yield "No files found" — run checks pointwise
   (typecheck, linter on `<files>`).
-- **A review UI does not "apply" the diff** — expected: the UI looks at main; move
+- **A review UI does not "apply" the diff** — it observes the base checkout; move
   the diff via apply first.
 
 ## Agent checklist
@@ -292,10 +294,10 @@ git worktree prune
 - [ ] Setup (dependency install) done or explicitly skipped.
 - [ ] All edits and checks happen in `WORKTREE_PATH`.
 - [ ] A lagging branch's contribution measured with three-dot
-      (`git diff main...HEAD --stat`), not two-dot; checked whether main did the
+      (`git diff "$BASE_REF"...HEAD --stat`), not two-dot; checked whether the base did the
       same work independently.
-- [ ] Before apply, when main moved ahead, the file overlap was checked
-      (`git diff --stat <base> <main-HEAD> -- <files>`); rebase only on overlap,
+- [ ] Before apply, when the base moved ahead, the file overlap was checked
+      (`git diff --stat <base> <base-HEAD> -- <files>`); rebase only on overlap,
       conflicts only with full confidence, otherwise abort + stop.
 - [ ] After merge/rebase — `<check>` green **and** the diff read for duplicated
       insertions (markers may be absent).

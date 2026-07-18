@@ -1,163 +1,109 @@
 # symphony
 
-The full task pipeline under Claude's control: clarify → plan (Codex) → build
-(subagent) → reconcile against the plan → parallel review → triage → fix loop →
-done. The human is the conductor at the gates. The orchestrator makes no
-assumptions, does not write code itself, and does not stop until the task is
-done or the human stops it.
+The current host orchestrates the full pipeline:
 
-Every phase is the same pattern: **produce → verify → fix → repeat**. Only the
-performer, the judge, and the exit condition change.
+```text
+clarify -> plan -> build -> reconcile -> review -> triage -> fix -> done
+```
 
-## Roles
+The host owns state, gates, artifacts, and commits but does not edit task code.
+Tracked native agents implement and design-review; read-only Codex agents plan and
+review correctness/security.
 
-- **Orchestrator** (this command, the current session, a strong model): owns
-  state and the run file, the gates and questions, the reconciliations, dedup
-  and triage, and commits. Does **not** edit code.
-- **Codex** (`gpt-5.5`, calls strictly per `docs/ai/agents/cli.md`): the plan
-  and correctness/security review.
-- **Build subagent** (Agent tool): all code — the implementation and every fix.
-- **Design reviewer** (subagent `review-design`, opus).
+## Configuration and roles
+
+Read `.agent-workflow-kit/config.conf`, active profiles, project rules, and
+`docs/ai/agents/cli.md`.
+
+- Planner: `PLANNER_MODEL`.
+- Builder/fixer: native `build` agent using `BUILDER_MODEL`.
+- Correctness/security: Codex using `CORRECTNESS_MODEL` and `SECURITY_MODEL`.
+- Design: native `review-design` agent using `DESIGN_MODEL`.
+- Base branch/ref: resolved `BASE_REF`.
+- Verification: `CHECK_COMMAND`.
+
+`auto` model values inherit the host/account default. Resolve effort through
+`DEFAULT_EFFORT`; workflow `max` maps through host capability config.
 
 ## Invariants
 
-1. Ask instead of assuming. Red flags from
-   `docs/ai/skills/implementation-clarify.md` always go to the human.
-2. Questions to the human go in a single batch, grouped (AskUserQuestion), with
-   answer options. Never one at a time.
-3. Only the build subagent writes code. The orchestrator reads, reconciles, and
-   formulates.
-4. Do not stop on your own: the end is only "done" (see phase 7) or a human
-   stop. An escape hatch is not a silent stop — it is a question to the human.
-5. The run file is updated and committed after every phase and every round.
-6. CLI calls come only from `docs/ai/agents/cli.md`.
-7. Models are strong-only; intelligence is tuned with effort
-   (`docs/ai/commands/choose-model.md`). Mechanical steps get low effort, not a
-   weaker model. State the model/effort choice in one line before each phase.
+1. Ask unresolved material questions in one host-native batch.
+2. Only the build agent edits task code. The host may write plans, reviews, and the
+   run-state artifact.
+3. Reviewers return text and stay read-only.
+4. Keep one resumable run file and update it after every phase/round.
+5. Commit only on the isolated task branch as part of this explicitly invoked
+   workflow. Never push or apply to the resolved base checkout without a separate
+   request.
+6. Review frozen commits, not a moving dirty tree.
+7. Stop only at `done`, a user stop, or a documented escape hatch requiring user
+   direction.
 
-## Workspace and commits
+## Workspace
 
-- If the session is already on an isolated branch (a remote session, a ready
-  worktree), work in it. Otherwise create a worktree per
-  `docs/ai/recipes/git-worktree.md` and a task branch; invoking `/symphony` is
-  itself the user's request for a worktree.
-- Invoking `/symphony` is a mandate to commit **on the task branch**: commit
-  after every phase and every fix round (`docs/ai/rules/commit-message.md`; the
-  run file goes into the same commit). Do not commit to other branches, do not
-  push, and do not apply to main without an explicit request.
-- Review always runs against a frozen commit (sha), never against a dirty tree.
-- All edits and checks happen in the task tree (path pitfalls are in the
-  "Pitfalls" section of the worktree recipe; pass subagents the absolute path of
-  the tree).
+If already on an isolated task branch/worktree, use it. Otherwise create a
+worktree per `docs/ai/recipes/git-worktree.md`; invoking `symphony` authorizes that
+task worktree and its task-branch commits, not changes to the base checkout.
 
-## Run file (resume)
+Resolve `BASE_REF=auto` from `origin/HEAD`, falling back to the current base
+checkout branch. Record the resolved ref in the run file and use it everywhere.
 
-`docs/ai/runs/YYYY-MM-DD-short-task.symphony.md`, format per
-`docs/ai/runs/README.md`. Before starting, check whether a run file for this
-task already exists: if so, read the state and continue from the recorded phase.
-Do not start over and do not repeat closed gates.
+## Run file
+
+Use `docs/ai/runs/YYYY-MM-DD-short-task.symphony.md` per
+`docs/ai/runs/README.md`. Resume an existing task file instead of reopening closed
+gates.
 
 ## Phases
 
-### 1. Clarify (gate)
+### 1. Clarify
 
-1. Study the task and the affected code.
-2. Collect questions per `docs/ai/skills/implementation-clarify.md`; answer them
-   yourself from the codebase where you can (by reading the real code).
-3. To the human in a batch: what is unresolved, all red flags (self-answering
-   does not close them), and debatable self-answers phrased as "I believe X,
-   confirm."
-4. Repeat until clean. Record the answers in the run file as decisions.
+Inspect the task/code and apply the clarification skill. Ask unresolved red flags
+in one batch and record settled decisions.
 
-### 2. Plan (gate)
+### 2. Plan
 
-1. Run the entire `docs/ai/commands/codex-plan.md` process: the questioning
-   call to Codex, effort choice, the plan, and the reconciliation loop. Pass the
-   phase 1 decisions as settled.
-2. Gate: show the human the summary, the assumptions, and the questions. Edits →
-   re-plan through Codex. Record the approval in the run file.
+Run `docs/ai/commands/codex-plan.md`. Present the plan path, summary, assumptions,
+and gate. User changes return through the planner.
 
-### 3. Build (loop)
+### 3. Build
 
-1. State the model/effort: default opus/`high`; `xhigh`/`max` by the cost of a
-   mistake; fable only for the hardest long-running tasks; mechanics → opus/`low`.
-2. Launch the build subagent: strictly per the plan, following
-   `docs/ai/skills/build.md` and the project rules, a minimal scoped diff,
-   `<check>` until green, **do not commit** (the orchestrator commits). Split a
-   large plan into steps — one subagent per step, effort per step.
-3. Reconcile the implementation against the plan yourself and output the
-   mandatory line:
-   `Plan reconciliation: matches` or
-   `Plan reconciliation: deviations — [...]`.
-   - Technical deviations (unfinished, extra, off-plan) → return concrete fixes
-     to the subagent, repeat the loop.
-   - Semantic deviations and forks (the plan is inaccurate, something new
-     surfaced) → to the human in a batch; if the answers change scope → return
-     to phase 2 (re-plan), otherwise → fix via the subagent.
-4. Clean reconciliation → commit + run file.
+Launch the native `build` agent against the approved plan. It runs applicable
+tests and `CHECK_COMMAND`, returns a summary, and does not commit. The host
+reconciles result vs plan, sends technical deviations back for fixes, and asks the
+user about semantic scope changes. Commit a clean phase with run state.
 
-### 4. Review (round N)
+### 4. Review
 
-1. Freeze a snapshot: the sha of the last commit.
-2. Scope: round 1 — the whole task diff (`<base>...HEAD`); round N+1 — the delta
-   from the last reviewed sha; pass the findings registry to the reviewers as
-   "already known" context.
-3. Run the `docs/ai/commands/review-full.md` process: Codex correctness
-   (+security by risk signals) ∥ design subagent, in parallel.
-4. Dedup per the review-full rules **plus against the registry**: do not reopen
-   `rejected`/`wontfix`; if `fixed` but it came back → status `regression`.
-5. Write every round into the one review file for the task, each round as a
-   `## Round N (<sha>)` section; do not create a new file.
+Freeze the commit. Round 1 uses the resolved `BASE_REF...HEAD`; later rounds use
+the delta from the last reviewed commit. Run `review-full`, deduplicate against the
+existing findings registry, and append one round to the same review artifact.
 
-### 5. Triage (gate)
+### 5. Triage
 
-1. Enter new findings into the run file registry (ID, source, severity, file,
-   gist, status `open`).
-2. To the human, compactly per open finding: the gist plus solution options in
-   1–2 lines, grouped by severity. The human's decision: `accepted` (fix) /
-   `rejected` (finding is wrong) / `wontfix` (correct, but we will not fix).
-3. Do not hide Nit/Optional/FYI: if there is no Critical/Required, still show the
-   rest and ask whether to fix or skip. Do not slip silently into done.
+Record findings with stable IDs/status. Present open findings compactly by
+severity. The user chooses `accepted`, `rejected`, or `wontfix`; do not hide lower
+severities.
 
-### 6. Fix (loop)
+### 6. Fix
 
-1. `accepted` findings → build subagent (effort by the cost of a mistake in the
-   fixes), minimal edits, `<check>` green.
-2. Commit; in the registry `accepted` → `fixed`; update the run file.
-3. Return to phase 4 as a new round (on the delta). The review+fix loop runs
-   while there are open/accepted Critical/Required findings or the human gives
-   new edits. The human ends the loop: by a stop or by confirming the remaining
-   findings.
+Send accepted findings to the `build` agent, run `CHECK_COMMAND`, reconcile, and
+commit with run state. Mark fixes and return to review on the new delta.
 
 ### 7. Done
 
-Criteria (all at once):
+All are required:
 
-- no Critical/Required findings in status `open`/`accepted`/`regression`;
-- `<check>` green;
-- the last plan reconciliation is clean;
-- the human has confirmed the remaining Nit/Optional/FYI (fix or skip).
+- no open/accepted/regressed Critical or Required findings;
+- configured verification passes;
+- plan reconciliation is clean;
+- the user resolved remaining lower-severity findings.
 
-Finish: run file → `done`, final commit. In chat, a final summary: what was
-done, the plan, the review files, the registry, the branch/sha. Push, PR, and
-apply to main only on an explicit request.
+Mark the run done, commit final state, and return artifact paths, branch/ref, and
+summary. Push/PR/apply remain separate user-authorized actions.
 
 ## Escape hatches
 
-Do not spin the loop silently — go to the human with a question if:
-
-- the build subagent fails or twice in a row fails to get `<check>` green for the
-  same reason;
-- `<check>` is red because of infrastructure or pre-existing problems, not the
-  task;
-- the plan turns out to be wrong in substance, not just at one point;
-- scope grows beyond the plan;
-- two review+fix rounds in a row do not reduce open Critical/Required;
-- Codex is rate-limited — ask: wait, or continue without Codex review (a note in
-  the run file is mandatory).
-
-## Gate messages
-
-Every gate: a short status (phase, round, what was done, what is next) plus
-questions in a batch. Do not retell whole reports — give paths to the artifacts
-and the gist.
+Ask the user when repeated build/check failures do not improve, verification is
+blocked by pre-existing infrastructure, the plan is materially wrong, scope grows,
+review rounds stall, or a required reviewer/model is unavailable.

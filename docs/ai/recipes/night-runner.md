@@ -3,15 +3,15 @@
 An unattended, two-phase batch pipeline that turns a folder of task **briefs**
 into reviewed branches while you sleep. You write briefs, the runner plans them,
 implements them, reviews them, and fixes blocking findings — each task in its own
-isolated git worktree, never touching `main`.
+isolated Git worktree, never touching the resolved `BASE_REF` checkout.
 
 The kit ships this as a **pattern + config templates**, not runnable code: the
 orchestration is deliberately thin and maps 1:1 onto the same agents, skills, and
 CLI calls the rest of the kit already defines (`docs/ai/agents/cli.md`,
 `docs/ai/skills/plan.md`, `docs/ai/skills/build.md`, the review skills). Templates
 live in `night-runner/` (`sandbox.settings.json`, `briefs/TEMPLATE.md`). Wire the
-loop to your task runner of choice (a small Node/TS script, a shell loop, a Make
-target). How to *write* good briefs: `docs/ai/recipes/night-runner-briefs.md`.
+loop to your task runner of choice (a script, build target, or automation job).
+How to *write* good briefs: `docs/ai/recipes/night-runner-briefs.md`.
 
 ## Why two phases
 
@@ -78,13 +78,13 @@ progress**, not restarted:
   reports are reused and it goes straight to the fix.
 - The checkpoint is trusted **only if the worktree is actually intact**. If the
   worktree vanished or moved to another branch, the runner recreates it clean
-  from `main`, discards the stale checkpoint, and runs from scratch.
+  from the resolved base ref, discards the stale checkpoint, and runs from scratch.
 
 ## Isolation & safety
 
 - Each task runs in its own worktree at `../<repo>-worktrees/<slug>` on branch
   `auto/<slug>` (see `docs/ai/recipes/git-worktree.md`). The runner never touches
-  `main` and never pushes. Worst case is a throwaway commit on a throwaway branch
+  the base checkout and never pushes. Worst case is a throwaway commit on a task branch
   you choose not to keep.
 - Build/fix agents run with permissions bypassed (`--dangerously-skip-permissions`
   or equivalent) so they can run commands unattended — **only run this in a repo
@@ -100,12 +100,12 @@ progress**, not restarted:
 
 ## Commit hooks: `--no-verify`
 
-WIP commits on the throwaway `auto/<slug>` branch are made with `--no-verify`.
+WIP commits on the task branch are made with `--no-verify`.
 A heavy pre-commit hook (full CI + install on every commit) is wrong for a
 tight commit→review→fix loop in a worktree with a symlinked/`install`ed
-dependency dir. The quality gate is held by the agents themselves (`<check>` in
+dependency dir. The quality gate is held by the agents themselves (`CHECK_COMMAND` in
 build/fix + the review loop). **Your full hook fires when you commit the result
-into `main` yourself** — that is the right place for the gate.
+into the base checkout yourself** — that is the right place for the gate.
 
 ## Rate limits
 
@@ -123,33 +123,31 @@ in `in-progress/` to resume next run.
 ## Applying results
 
 Nothing is destroyed until you say so. Review each worktree's diff
-(`git diff main...HEAD` — three-dot, see the worktree recipe), then apply the
-ones you want into `main` as unstaged changes and commit them yourself. A separate
+(`git diff "$BASE_REF"...HEAD` - three-dot, see the worktree recipe), then apply the
+ones you want into the base checkout as unstaged changes and commit them yourself. A separate
 cleanup step removes the worktree, branch, brief, and logs once you've accepted
 the change.
 
 ## Suggested config knobs
 
-Expose these as env vars in your runner (defaults shown):
+Read role models, runner commands, and sandbox domains from
+`.agent-workflow-kit/config.conf`. A runner implementation may expose transient
+control values as environment variables:
 
 | Var                   | Default   | Purpose                              |
 | --------------------- | --------- | ------------------------------------ |
-| `PLAN_MODEL`          | `gpt-5.5` | planner (Codex)                      |
-| `BUILD_MODEL`         | `opus`    | build / fix (Claude)                 |
-| `CORRECTNESS_MODEL`   | `gpt-5.5` | correctness review (Codex)           |
-| `DESIGN_MODEL`        | `opus`    | design review (Claude)              |
 | `MAX_ROUNDS`          | `3`       | max review→fix rounds                |
 | `RATE_SLEEP_MS`       | `3600000` | sleep on rate limit (1h)             |
 | `RATE_ATTEMPTS`       | `6`       | attempts before stopping             |
 | `AGENT_TIMEOUT_MS`    | `5400000` | per-agent call timeout (90m)         |
 
-Model IDs are editable defaults — see `docs/ai/commands/choose-model.md` and
-`MODEL_PRESETS.md`.
+Model IDs are configured once through the role keys; see
+`docs/ai/commands/choose-model.md` and `MODEL_PRESETS.md`.
 
 ## Limitations
 
 - Briefs are processed one at a time, sequentially.
-- A brief that changes dependencies (`package.json`/lockfile) may break the
+- A brief that changes dependencies (manifest/lockfile) may break the
   worktree's dependency setup — finish those by hand.
 - The runner produces local worktrees + branches only; it does not push or open
   PRs.

@@ -2,7 +2,7 @@
 
 ## Why
 
-`/learn` captures knowledge from one specific session. An AI audit is a separate,
+`codex learn` captures knowledge from one specific session. An AI audit is a separate,
 periodic review of the project's AI surface: find duplicates, stale instructions,
 overly heavy always-applied rules, and drift between rules / skills / commands.
 
@@ -19,10 +19,13 @@ overly heavy always-applied rules, and drift between rules / skills / commands.
 
 1. **Inventory**
 
-   Source of truth (`docs/ai/*`):
+   Source of truth and configuration:
+   - `.agent-workflow-kit/config.conf` — the single project configuration.
+   - `docs/ai/setup.md` — prerequisites, install, configuration, validation.
    - `docs/ai/README.md` — the AI workflow map.
    - `docs/ai/rules/*.md`, `docs/ai/skills/*.md`, `docs/ai/commands/*.md`,
-     `docs/ai/agents/*.md`, `docs/ai/recipes/*.md`.
+     `docs/ai/agents/*.md`, `docs/ai/recipes/*.md`, `docs/ai/profiles/*.md`.
+   - `scripts/install.sh`, `scripts/validate.sh` — safe distribution and checks.
 
    Adapters (should only reference the source of truth, not duplicate its content):
    - `AGENTS.md` — Codex entry point.
@@ -75,6 +78,22 @@ overly heavy always-applied rules, and drift between rules / skills / commands.
      an adapter for the tool that runs it.
    - `CLAUDE.md`, `AGENTS.md`, and the Cursor rules contain no links to deleted
      workflows.
+
+6. **Portability and anonymity**
+   - Core rules stay stack- and domain-neutral; conditional policy belongs in an
+     explicitly activated profile.
+   - Verification, base ref, active profiles, model roles, and host adapters come
+     from `.agent-workflow-kit/config.conf`, not duplicated literals.
+   - No personal paths, email addresses, credentials, concrete model IDs, or
+     repository-specific names appear in distributable files.
+   - The installer is dry-run by default, does not overwrite conflicts, preserves
+     an existing project config, and never replaces the target root license.
+   - Read-only agents return text to their caller; the writable host owns artifact
+     creation.
+   - Cursor exposes native adapters for every role it claims to support.
+   - Bash/POSIX and external CLI prerequisites are explicit.
+   - Run `scripts/validate.sh`; before publishing, also run
+     `scripts/validate.sh --release` and manually review Git authors/remotes.
 
 ## Report format
 

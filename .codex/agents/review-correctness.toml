@@ -1,11 +1,9 @@
 name = "review_correctness"
 description = "Read-only Codex correctness reviewer over the current diff."
-model = "gpt-5.5"
-model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 developer_instructions = """
 Read `docs/ai/agents/review-correctness.md` and
 `docs/ai/skills/review-correctness.md`. Review only the changed files and related
-code paths. Do not edit code — return the report only. If an artifact is needed,
-write it to `docs/ai/reviews/YYYY-MM-DD-short-task.review.md`.
+code paths. Read `.agent-workflow-kit/config.conf` and active profiles. Do not edit
+files; return the report to the caller. The caller writes any repository artifact.
 """

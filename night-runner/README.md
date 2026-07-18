@@ -8,8 +8,9 @@ limits, and safety model are documented in
 ## What's here
 
 - `sandbox.settings.json` — filesystem + network sandbox passed to the Claude CLI
-  via `--settings` for unattended build/fix runs. Extend `denyRead` and
-  `network.allowedDomains` for your setup; never loosen the write scope past `./`.
+  via `--settings` for unattended build/fix runs. The installer generates its
+  network allowlist from `RUNNER_NETWORK_ALLOWED_DOMAINS`; extend `denyRead` for
+  your setup and never loosen the write scope past `./`.
   Explained in [`docs/ai/recipes/sandboxes.md`](../docs/ai/recipes/sandboxes.md).
 - `briefs/TEMPLATE.md` — starting point for a task brief. Copy it into
   `briefs/new/`. How to write good briefs:
@@ -39,7 +40,7 @@ The loop maps 1:1 onto the kit's existing pieces — you only orchestrate them:
 
 - CLI invocations for every agent call: `docs/ai/agents/cli.md`.
 - Roles: planner `docs/ai/agents/codex-plan.md`, builder
-  `docs/ai/agents/claude-build.md`, reviewers `docs/ai/agents/review-*.md`.
+  `docs/ai/agents/build.md`, reviewers `docs/ai/agents/review-*.md`.
 - Config knobs (models, round cap, rate-limit sleep/attempts, timeouts) and the
   full safety model: `docs/ai/recipes/night-runner.md`.
 

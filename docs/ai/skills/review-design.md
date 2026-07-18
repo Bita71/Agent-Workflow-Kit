@@ -1,69 +1,54 @@
 # Review Design
 
-Look for code-design and product-design problems: maintainability, boundaries, UX, performance, and simplification. Don't duplicate correctness bugs.
+Find maintainability, boundary, usability, simplification, and performance
+problems introduced or amplified by the changed scope. Do not duplicate proven
+correctness/security defects.
 
 ## Scope
 
-- Review only the changed files and their nearest dependencies.
-- On a small diff, don't bloat the report.
-- Propose simplification only within the diff, or when the diff amplifies an existing problem.
+- Read config, active profiles, and applicable project rules.
+- Review changed files and their nearest dependencies only.
+- Propose simplification only when it reduces real complexity in scope.
 
 ## What to check
 
-First check the applicable project rules from `docs/ai/rules/project.md` and `docs/ai/rules/coding-rules.md`, if they relate to the changed diff. Don't duplicate the rules in full — report only the specific violations.
-
 ### Architecture and boundaries
 
-- The code sits in the correct layer and module.
-- The public API doesn't leak internal details and doesn't export the unnecessary.
-- Cross-layer and cross-module links don't create hidden coupling.
-- The props/hooks/DTO/query/mutation contracts can evolve without a large refactor.
+- Ownership and dependency direction remain clear.
+- Public contracts expose no unnecessary internals.
+- Cross-boundary coupling and migration cost are proportionate to the task.
+- The change follows repository patterns or gives a concrete reason to differ.
 
-### UX and product consistency
+### Product and operator experience
 
-- The user sees clear states: loading, error, empty, disabled, success.
-- Errors and constraints are explained, not silently breaking the flow.
-- The UI doesn't diverge from the project's local patterns and components.
-- For visual changes, ARIA/modal patterns aren't broken.
+- Applicable success, failure, progress, empty, and recovery behavior is clear.
+- Errors and constraints are actionable for the relevant user/operator.
+- Interface-specific checks come only from active profiles.
 
 ### Simplification
 
-- Remove excess complexity, but apply Chesterton's Fence: first understand why the code was that way.
-- Duplication, a wrapper for a wrapper's sake, excess effects/state, dead code, premature abstraction.
-- Prefer a simple local solution over a new universal abstraction.
+- No redundant wrapper, duplicated path, premature abstraction, dead branch, or
+  unnecessary state.
+- Apply Chesterton's Fence before proposing removal.
 
 ### Performance
 
-- A performance finding as `Required` only with evidence or an obviously strong risk.
-- Check request waterfalls, unstable query keys, excess refetches, heavy computations in render.
-- In React, check excess rerenders, inline objects/functions in hot spots, keys in lists.
+- A required finding needs evidence or an obviously material risk.
+- Check applicable hot paths, repeated I/O, avoidable round trips, unbounded work,
+  allocation/resource lifetime, and caching invalidation.
+- Language/framework-specific checks come from active profiles.
 
-## Severity
-
-- `Critical`: an architectural decision breaks security/data/core flow.
-- `Required`: must be fixed before merge, otherwise a maintainability problem or a noticeable UX/performance risk appears.
-- `Nit`: a small, pointed fix.
-- `Optional`: a quality improvement, not mandatory now.
-- `FYI`: context or future tech debt.
-
-## Don't
-
-- Don't propose a large refactor out of scope.
-- Don't duplicate correctness/security findings.
-- Don't reference project rules in full; point out the specific applicable violation.
-
-## Format
+## Severity and format
 
 ```markdown
 Critical: N | Required: N | Nit: N | Optional: N | FYI: N
 
-### [Critical / Required / Nit / Optional / FYI]
-
+### [severity]
 **File:** `path`
-**Problem:** [the gist]
-**Why it hurts:** [architecture / UX / performance / maintenance]
+**Problem:** [gist]
+**Why it hurts:** [boundary, UX, performance, maintenance]
 **Suggestion:** [concrete action]
-**Assessment:** risk [low/medium] · impact [high/medium/low] · effort [small/medium]
+**Assessment:** risk [low/medium] | impact [high/medium/low] | effort [small/medium]
 ```
 
-If there are no substantial problems: `No substantial design problems found`.
+If clean: `No substantial design problems found`.

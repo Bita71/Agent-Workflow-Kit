@@ -5,16 +5,17 @@ roles, and artifacts. Every tool (Claude Code, Codex, Cursor) points here throug
 a thin adapter instead of keeping its own copy of the logic. Edit the logic once,
 in `docs/ai`; the adapters just reference it.
 
-`<check>` throughout these docs means **your repository's standard verification
-command** — lint + typecheck + tests (e.g. `npm run check`, `yarn ai:check`).
-Define it once in `CLAUDE.md` / `AGENTS.md` and wire it up.
+Read `.agent-workflow-kit/config.conf` first. `<check>` throughout these docs means
+its `CHECK_COMMAND`; `<base-ref>` means its resolved `BASE_REF`. Load `core` and
+only the additional profiles listed in `PROFILES`.
+
+Setup and supported prerequisites: `docs/ai/setup.md`.
 
 ## Rules
 
 - `docs/ai/rules/project.md` — tool-agnostic invariants: scope, clarify, safety,
   verification.
-- `docs/ai/rules/coding-rules.md` — **template**: your stack's conventions
-  (architecture boundaries, types, UI/i18n, styling, code style).
+- `docs/ai/rules/coding-rules.md` — project-owned conventions over active profiles.
 - `docs/ai/rules/commit-message.md` — Conventional Commits.
 - `docs/ai/rules/testing.md` — what to cover with tests and how.
 
@@ -34,8 +35,8 @@ Define it once in `CLAUDE.md` / `AGENTS.md` and wire it up.
   the full pipeline: clarify → plan → build → verify → review → triage → fix loop,
   with human gates and a resumable run file.
 - `docs/ai/commands/plan.md` — the planner writes a `.plan.md` directly.
-- `docs/ai/commands/codex-plan.md` — Claude orchestrates planning through the
-  Codex CLI: questions, plan, reconciliation, gate.
+- `docs/ai/commands/codex-plan.md` — the current host orchestrates planning through
+  read-only Codex: questions, plan, reconciliation, gate.
 - `docs/ai/commands/build.md` — implement a task.
 - `docs/ai/commands/review-full.md` — orchestrate a parallel review: Codex
   correctness/security ∥ strong-model design, merged into one deduplicated report.
@@ -50,7 +51,7 @@ Define it once in `CLAUDE.md` / `AGENTS.md` and wire it up.
 - `docs/ai/agents/cli.md` — canonical CLI invocations for Codex/Claude used by the
   orchestrating commands and runners. **Do not invent flags — take them from here.**
 - `docs/ai/agents/codex-plan.md` — the planner.
-- `docs/ai/agents/claude-build.md` — the builder.
+- `docs/ai/agents/build.md` — the host-neutral builder.
 - `docs/ai/agents/review-correctness.md` — correctness reviewer.
 - `docs/ai/agents/review-security.md` — security reviewer.
 - `docs/ai/agents/review-design.md` — design reviewer.
@@ -63,12 +64,18 @@ Define it once in `CLAUDE.md` / `AGENTS.md` and wire it up.
 
 ## Adapters
 
-- `CLAUDE.md` + `.claude/` — Claude Code: native commands and a design-review
-  subagent that point into `docs/ai`.
+- `CLAUDE.md` + `.claude/` — Claude Code: native commands and build/design agents.
 - `AGENTS.md` + `.agents/skills/*/SKILL.md` + `.codex/` — Codex: repo instructions,
   repo-scoped skills, and custom subagents. Codex runs workflows via text triggers
   and skills, not project slash commands.
-- `.cursor/` — Cursor: rules, commands, and skills that reference `docs/ai`.
+- `.cursor/` — Cursor: rules, commands, and build/design agents that reference
+  `docs/ai`.
+
+## Profiles
+
+- `docs/ai/profiles/core.md` — mandatory stack-neutral profile.
+- `docs/ai/profiles/web-typescript.md` — optional TypeScript web overlay.
+- `docs/ai/profiles/README.md` — activation and precedence rules.
 
 ## Recipes
 

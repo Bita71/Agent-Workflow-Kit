@@ -2,8 +2,8 @@
 
 A portable operating system for agent-driven software development across Claude
 Code, Codex, and Cursor. It gives you a disciplined pipeline for planning,
-building, reviewing, and shipping code changes — plus an unattended night runner
-for batch work.
+building, reviewing, and shipping code changes, plus a documented unattended
+night-runner pattern for batch work.
 
 The design principle: **one source of truth, thin adapters.** All the logic —
 rules, skills, commands, agent roles — lives in `docs/ai/`. Each tool points there
@@ -13,35 +13,45 @@ through a small adapter, so there's no duplicated logic to drift.
 
 ```text
 docs/ai/            Source of truth (rules, skills, commands, agents, recipes, artifacts)
+.agent-workflow-kit/ One project config + nested kit license
 AGENTS.md           Codex adapter → docs/ai
 CLAUDE.md           Claude Code adapter → docs/ai
-.claude/            Claude commands + design-review subagent + settings example
+.claude/            Claude commands + build/design agents + settings example
 .codex/             Codex config + custom subagents (toml)
 .agents/skills/     Codex repo-scoped skill adapters
-.cursor/            Cursor rules + commands
+.cursor/            Cursor rules + commands + native agents
 night-runner/       Config templates for the unattended batch runner
-MODEL_PRESETS.md    Model + effort defaults (editable)
+MODEL_PRESETS.md    Model-role and effort policy
+scripts/            Dry-run installer + validator
 LICENSE             MIT
 ```
 
 ## Quick start
 
-If the target repo already has any of these files, **merge manually** instead of
-overwriting your instructions.
+Prerequisites: Git and a POSIX/Bash environment (Git Bash or WSL on Windows), plus
+the CLIs for the host adapters you select. Details: `docs/ai/setup.md`.
+
+Preview installation into an existing repository:
 
 ```bash
-# Everything (recommended)
-cp -R docs .claude .codex .agents .cursor night-runner \
-      AGENTS.md CLAUDE.md MODEL_PRESETS.md LICENSE /path/to/your/repo/
-
-# Or per tool — docs/ai is required in every case:
-cp -R docs .claude CLAUDE.md /path/to/your/repo/                 # Claude Code
-cp -R docs .codex .agents AGENTS.md /path/to/your/repo/          # Codex
-cp -R docs .cursor /path/to/your/repo/                           # Cursor
+scripts/install.sh /path/to/your/repo \
+  --components core,claude,codex,cursor \
+  --check-command 'your verify command'
 ```
 
-Then customize (see [Make it yours](#make-it-yours)) — at minimum, define your
-`<check>` command and fill in `docs/ai/rules/coding-rules.md`.
+Dry-run is the default. The installer never overwrites a different file and aborts
+before writing if it finds a conflict. Apply the reviewed plan with the same
+arguments plus `--apply`, then run:
+
+```bash
+/path/to/your/repo/scripts/agent-workflow-kit-validate.sh
+```
+
+Use `--components all` to include the optional night-runner templates; that mode
+also requires the `--runner-plan`, `--runner-exec`, and `--runner-clean` options.
+See `docs/ai/setup.md`. The kit's license is installed under
+`.agent-workflow-kit/LICENSE`; the target project's root `LICENSE` is never
+replaced.
 
 ## The workflow
 
@@ -65,17 +75,18 @@ gates.
 
 ### Model policy
 
-Strong models only; intelligence is scaled by a `reasoning effort` knob, not by
-downgrading the model. Default effort is `high`; raise it with the cost of being
-wrong. Full guidance in `docs/ai/commands/choose-model.md` and `MODEL_PRESETS.md`.
+Model roles and effort live only in `.agent-workflow-kit/config.conf`. `auto`
+inherits the host/account default; pin current IDs there, never across adapters.
+Guidance: `docs/ai/commands/choose-model.md` and `MODEL_PRESETS.md`.
 
 ## Night runner
 
 An unattended, two-phase batch pipeline: you drop task **briefs** in a folder, a
 planner turns each into a plan (you review the plans), then a builder implements +
-reviews + fixes each one in its own isolated git worktree — never touching `main`.
+reviews + fixes each one in its own isolated git worktree - never touching the
+resolved `BASE_REF` checkout.
 
-The kit ships this as a **pattern plus config templates**, not runnable code: the
+The kit ships this as a **pattern plus config templates**, not runnable code. The
 loop maps 1:1 onto the same agents, skills, and CLI calls the rest of the kit
 already defines, so you wire it to your task runner of choice.
 
@@ -94,26 +105,29 @@ explains each layer, how they interact, and the symptoms that tell them apart.
 
 ## Make it yours
 
-The kit is intentionally generic. After copying, customize:
+The installer creates one config. Customize it and the local overlay:
 
-- **`<check>`** — your standard verify command (lint + typecheck + tests). Define it
-  in `CLAUDE.md` / `AGENTS.md`; it's referenced throughout as `<check>`.
-- **`docs/ai/rules/coding-rules.md`** — a template: your architecture boundaries,
-  types, UI/i18n, styling, and code-style conventions.
+- **`.agent-workflow-kit/config.conf`** — `CHECK_COMMAND`, `BASE_REF`, active
+  profiles, selected tools, model roles, effort, shell, and ecosystem.
+- **`docs/ai/rules/coding-rules.md`** — project overlay: architecture boundaries,
+  toolchain, contracts, domain constraints, and code-style conventions.
+- **`docs/ai/profiles/`** — activate only applicable stack/domain overlays.
 - **`docs/ai/rules/project.md`** — tighten the tool-agnostic invariants for your
   team.
 - **`docs/ai/rules/testing.md`** — swap in your test runner and libraries.
-- **`MODEL_PRESETS.md`** and **`.codex/config.toml`** — pin the models/effort your
-  accounts use.
-- **`night-runner/sandbox.settings.json`** — your registry hosts and secret paths.
+- **`RUNNER_*` in config** — optional runner commands and sandbox domains; the
+  installer renders `night-runner/sandbox.settings.json` from them.
 
-## Non-goals
+## Portability contract
 
-- Not tied to any product domain.
-- No secrets, local paths, private URLs, or project-specific business rules.
-- No new runtime dependencies required.
+- Neutral core with opt-in stack/domain profiles.
+- No secrets, private URLs, personal paths, or project-specific business rules in
+  the distributed tracked files.
+- No application runtime dependency; Git/Bash/POSIX/selected agent CLIs are workflow
+  prerequisites.
 
 ## Source
 
-This workflow was extracted from a real production project and cleaned up for
-open-source use. The `LICENSE` is MIT — replace it if you prefer another.
+This workflow was derived from production patterns and generalized for reuse. The
+kit is MIT-licensed. Installation preserves that notice without modifying the
+target project's root license.

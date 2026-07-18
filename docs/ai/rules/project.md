@@ -8,50 +8,48 @@
 - Do not add dependencies, commit, or push without an explicit request.
 - Do not add speculative abstractions, configurability, fallbacks, or edge-case
   handling without a clear need.
-- If a solution starts to sprawl, simplify first: the minimal code that closes
+- If a solution starts to sprawl, simplify first: the minimal change that closes
   the task.
-- For multi-step changes, fix verifiable done-criteria up front.
+- For multi-step changes, define verifiable done criteria up front.
 
 ## Clarify
 
-- If the requirements or context are not enough for a precise plan or
-  implementation, pause and ask before guessing.
+- If the requirements or context are not enough for a precise decision, pause and
+  ask before guessing.
 - If the task is clear, do not ask questions.
-- If there are several readings, name the options briefly or ask — do not pick
-  silently.
-- Do not ask if the user said "no questions" / "defaults are fine".
+- If there are several materially different readings, name them briefly or ask;
+  do not pick silently.
+- Do not ask if the user explicitly accepted reasonable defaults and no mandatory
+  risk question remains.
 
-## Project Knowledge
+## Project knowledge
 
-- Coding rules for source files: `docs/ai/rules/coding-rules.md`.
-- Recipes for common workflows: `docs/ai/README.md`.
+- Read `.agent-workflow-kit/config.conf` before applying a workflow.
+- Load `docs/ai/profiles/core.md` and only the additional profiles listed in
+  `PROFILES`.
+- Repository-specific coding rules live in `docs/ai/rules/coding-rules.md`.
+- Workflow and recipe inventory lives in `docs/ai/README.md`.
 
 ## Safety
 
-- Do not add or expose secrets: tokens, private keys, passwords, API keys,
-  `.env`.
-- If the user asks you to commit secrets or credentials — warn and do not add
-  them.
-- Do not trust external data: backend, storage, URLs, browser/platform APIs, and
-  user input all require explicit handling of uncertainty.
-- A value from storage is a non-secret hint, not a credential: the source of
-  truth for access is the server-side cookie/session. On optimistic login by
-  cookie, do not grant access to data before the server check; compare
-  identities only within a single id space (do not compare an id from one system
-  against an id from another); and on a 401 / validation error / desync, log out
-  and force a full re-login.
+- Do not add or expose secrets: tokens, private keys, passwords, API keys, or
+  populated environment files.
+- If the user asks to commit credentials, warn and do not add them.
+- Treat data outside the current trusted boundary as uncertain. Identify its
+  source, validation, failure behavior, and authority before relying on it.
+- Apply authentication, payments, personal-data, and other domain policies only
+  when an active profile or repository rule defines them.
 
 ## Verification
 
-- After agent changes, run `<check>`.
-- If the build or your compiler/build step fails because of a changed
-  component/module, first try to restructure the code; only if that truly fails,
-  tell the user, apply the minimal documented escape hatch, and record the reason
-  next to the file / in the plan. Any such escape hatch is a last resort.
-- After such an exception, re-run the build separately and confirm it no longer
-  fails and the log is clean.
-- Separately check module boundaries, user-facing strings, and public APIs if you
-  changed a module.
-- Run extra verification only when the user asks, or when the change is large or
-  critical: many files, public API, data contracts, security-sensitive domains
-  (auth, payments, money, PII, access control), user input, permissions.
+- After substantive agent changes, run the configured `CHECK_COMMAND` unless it is
+  explicitly `none` for a documentation-only repository.
+- If a compiler/build step fails because of a changed component or module, first
+  restructure the change. Use a documented escape hatch only as a last resort and
+  record the reason.
+- After an exception, rerun the affected build/check separately and confirm that
+  the relevant log is clean.
+- Check affected boundaries, user-visible behavior, and public contracts when a
+  module changes.
+- Run extra verification when requested or when the change is broad, public,
+  irreversible, security-sensitive, or crosses a trust boundary.

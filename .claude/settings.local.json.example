@@ -1,5 +1,5 @@
 {
-  "//": "Copy to .claude/settings.local.json and adapt to your repo. These pre-allow low-risk, frequently-used commands so the agent isn't prompted for each one. Replace <check> and the lint/typecheck commands with your project's real ones.",
+  "//": "Copy to .claude/settings.local.json and adapt to your repo. Keep CHECK_COMMAND in .agent-workflow-kit/config.conf; add only the exact low-risk shell permissions this project needs.",
   "permissions": {
     "allow": [
       "Bash(git diff:*)",

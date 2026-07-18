@@ -1,66 +1,46 @@
 # Review Security
 
-Look only for real security risks. This is an optional review; it runs on risk signals, not on every diff.
+Run a dedicated security pass only when the user requests it or the changed diff
+crosses a security boundary.
 
-## When it's needed
+## Risk signals
 
-- auth/authorization/session/access control;
-- security-sensitive domains: payments, money, PII, transaction/checkout flows;
-- user input, URL, deep links, HTML/markdown, file/media;
-- storage/localStorage/sessionStorage/cookies;
-- external API, browser APIs, postMessage;
-- dependencies, env/config, logging, error-tracker breadcrumbs;
-- crypto/signature/encryption/randomness.
+- identity, authentication, authorization, session, or access control;
+- sensitive data, secrets, money/value, regulated behavior, or destructive action;
+- user/external input, files/media, URLs, rendering, parsers, or code execution;
+- storage, network, external services, permissions, configuration, or logging;
+- dependencies, supply chain, cryptography, signatures, or randomness.
 
 ## What to check
 
-- Applicable security-sensitive project rules from `docs/ai/rules/project.md` and `docs/ai/rules/coding-rules.md`, if they relate to the changed diff.
-- Trust boundaries: where input comes from user/backend/storage/URL and how it's validated.
-- XSS/HTML/script injection: `dangerouslySetInnerHTML`, `innerHTML`, `javascript:`, unsafe URL.
-- Secrets/PII: tokens, private keys, passwords, personal data in code, storage, or logs.
-- Auth/access control: can a check be bypassed, an action invoked without the required state or permissions.
-- Money/funds: race condition, double submit, idempotency, stale balance, recipient substitution.
-- Dependency/config: new dependencies, env flags, debug modes, insecure defaults.
-- Error handling: whether internal details or sensitive data are exposed.
-
-## Quick grep
-
-If there are changed `.ts/.tsx/.js/.jsx`, check the relevant changed files:
-
-```bash
-rg -n 'dangerouslySetInnerHTML|innerHTML|eval\(|new Function\(|document\.write|javascript:' <changed-files>
-rg -n 'apiKey|secretKey|privateKey|password|token' --case-sensitive <changed-files>
-rg -n 'localStorage|sessionStorage|postMessage|window\.open|location\.href' <changed-files>
-rg -n 'console\.(log|debug|warn|error)' <changed-files>
-```
-
-A grep hit isn't a bug. Check the context.
+- Authority and trust boundaries: who can invoke the action and which data is
+  trusted at each step.
+- Validation/canonicalization before security decisions or dangerous sinks.
+- Secret and sensitive-data exposure in code, storage, transport, logs, errors,
+  and artifacts.
+- Bypass, confused-deputy, replay, race, duplicate-action, and stale-state paths.
+- Safe defaults and failure behavior for config, dependencies, and feature flags.
+- Applicable scanners/queries from active profiles. A discovery hit is not a
+  finding until the code path proves risk.
 
 ## Severity
 
-- `Critical`: exploitable vulnerability, data/funds loss, secret leak.
-- `Required`: high-risk pattern that should be fixed before merge.
-- `Nit`: small hardening with low cost.
-- `Optional`: defense-in-depth.
-- `FYI`: risk note without a required fix.
-
-## Don't
-
-- Don't do a general code review.
-- Don't report theoretical OWASP items unconnected to the diff.
-- Don't demand a dependency audit if dependencies didn't change.
+- `Critical`: exploitable vulnerability, secret leak, or data/value loss.
+- `Required`: high-risk pattern that must be fixed before integration.
+- `Nit`: small hardening with low cost and a concrete risk reduction.
+- `Optional`: defense in depth.
+- `FYI`: relevant risk context without a required fix.
 
 ## Format
 
 ```markdown
 Critical: N | Required: N | Nit: N | Optional: N | FYI: N
 
-### [Critical / Required / Nit / Optional / FYI]
-
+### [severity]
 **File:** `path`
-**Risk:** [vulnerability / abuse case]
+**Risk:** [abuse/failure case]
 **Evidence:** [diff/code path]
 **Fix:** [concrete secure fix]
 ```
 
-If there are no problems: `No security problems found`.
+If clean: `No security problems found`.

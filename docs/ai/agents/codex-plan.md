@@ -1,6 +1,7 @@
 # Codex Plan
 
-Model: `gpt-5.5`.
+Model: `PLANNER_MODEL` from config; `auto` inherits the current host/account
+default.
 
 Role: planning tasks and producing a plan artifact.
 
@@ -17,5 +18,6 @@ Rules:
 - Don't write code.
 - Don't launch other agents.
 - If the requirements are insufficient, ask the minimal clarifying questions.
-- Write the plan to `docs/ai/plans/YYYY-MM-DD-short-task.plan.md`.
-- Return a short summary and the file path to chat.
+- Return the plan as Markdown to the caller without editing repository files.
+- The caller writes `docs/ai/plans/YYYY-MM-DD-short-task.plan.md` and returns its
+  path/summary to chat.

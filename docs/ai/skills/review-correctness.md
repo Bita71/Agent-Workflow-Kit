@@ -1,56 +1,51 @@
 # Review Correctness
 
-Look for real behavior defects. Don't review style and architecture unless it leads to a bug.
+Find real behavior defects in the changed scope. Do not review style or broad
+architecture unless it directly causes a bug.
 
-## Scope
+## Context and scope
 
-- Review only the changed files and the related code paths.
-- Use the diff as the source of truth; read surrounding code only to understand behavior.
-- Don't find problems in unchanged code, except where the new diff clearly activates an old bug.
+- Read config, active profiles, and applicable project rules.
+- Review the requested diff/range and its directly affected paths.
+- Use changed code as the source of truth; inspect neighboring code only to prove
+  behavior.
+- Do not report unrelated pre-existing problems unless the change activates them.
 
 ## What to check
 
-- Applicable project rules from `docs/ai/rules/project.md` and `docs/ai/rules/coding-rules.md`, if breaking them can lead to a bug, regression, or wrong behavior.
-- Task conformance: the code does exactly what's claimed.
-- Edge cases: empty data, `null`, `undefined`, network errors, timeouts, repeated actions.
-- Data boundary: backend/storage/URL/browser API are not treated as trusted.
-- State and async: race conditions, stale closures, floating promises, cleanup after unmount.
-- React: wrong deps, state updates in render, unnecessary syncing via effects, missing loading/error/empty states.
-- Type safety: new `any`, dangerous `as`, non-null assertions without a guarantee, loss of the DTO type.
-- Error handling: silent failures, an empty `catch`, the user gets no feedback on an error.
-- Domain: money, limits, currencies, formats, access control — security-sensitive domains (auth, payments, money, PII).
-- Tests: important new behavior without a test or a manual check.
+- Task conformance and preserved behavior outside the requested change.
+- Boundary values, absence/empty input, invalid input, partial failure, and error
+  propagation where applicable.
+- State transitions, cleanup, concurrency, ordering, retry, cancellation, and
+  repeated actions where applicable.
+- Trust boundaries and validation of external or lower-authority data.
+- Public contract compatibility, consumers, serialization, and migration.
+- Important changed behavior without an executable or documented verification.
+- Additional language/framework/domain checks from active profiles only.
 
 ## Security baseline
 
-Flag only obvious security bugs if they're visible in the diff: XSS, unsafe URL, secrets in logs, user input without validation, storing auth/session data in an insecure place. Deep security review is done by `skill-review-security`.
+Report an obvious security defect when the changed path proves it. Use the
+security skill for a dedicated risk-driven pass.
 
 ## Severity
 
-- `Critical`: security/data loss/broken core flow.
-- `Required`: bug, regression, incorrect edge case, missing validation.
-- `Nit`: a small fix that genuinely reduces the risk of an error.
-- `Optional`: an improvement that doesn't block merge.
-- `FYI`: an observation with no required action.
-
-## Don't
-
-- Don't duplicate architecture, readability, simplification, and performance without a bug — that's `skill-review-design`.
-- Don't rewrite project rules into the report; point out only the specific applicable violation in the diff.
-- Don't report matters of taste.
-- Don't speculate: a finding is needed only when there's a clear code path.
+- `Critical`: exploitable security issue, data loss, or broken core behavior.
+- `Required`: bug, regression, invalid contract, or missing required validation.
+- `Nit`: small concrete change that reduces a demonstrated error risk.
+- `Optional`: improvement that does not block integration.
+- `FYI`: relevant context without a required change.
 
 ## Format
 
 ```markdown
 Critical: N | Required: N | Nit: N | Optional: N | FYI: N
 
-### [Critical / Required / Nit / Optional / FYI]
-
+### [severity]
 **File:** `path`
-**Problem:** [what will break]
-**Evidence:** [line/diff fragment or code path]
+**Problem:** [what breaks]
+**Evidence:** [line, diff, or code path]
 **Fix:** [concrete fix]
 ```
 
-If there are no problems: `No critical correctness problems found`.
+If clean: `No critical correctness problems found`.

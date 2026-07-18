@@ -7,17 +7,6 @@
       "allowWrite": ["./"],
       "denyRead": ["~/.ssh", "~/.aws", "~/.gnupg", "~/.config/gh"]
     },
-    "network": {
-      "allowedDomains": [
-        "registry.npmjs.org",
-        "registry.yarnpkg.com",
-        "*.npmjs.com",
-        "*.yarnpkg.com",
-        "github.com",
-        "raw.githubusercontent.com",
-        "objects.githubusercontent.com",
-        "codeload.github.com"
-      ]
-    }
+    "network": { "allowedDomains": [] }
   }
 }

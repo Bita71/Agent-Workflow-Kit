@@ -7,15 +7,15 @@ alwaysApply: true
 `docs/ai` is the source of truth for rules, skills, commands, agent roles, and
 artifacts. Before working, read:
 
+- `.agent-workflow-kit/config.conf` — project settings and active profiles.
 - `docs/ai/README.md` — map of the AI surface.
 - `docs/ai/rules/project.md` — tool-agnostic invariants (scope, clarify, safety,
   verification).
 - `docs/ai/rules/coding-rules.md` — this stack's conventions.
 - `docs/ai/rules/commit-message.md` — Conventional Commits.
 
-`<check>` means the repository's standard verify command (lint + typecheck +
-tests). Run it after substantive changes. Do not commit or push without an
-explicit request.
+`<check>` means `CHECK_COMMAND` from the config. Run it after substantive changes
+unless it is `none`. Do not commit or push without an explicit request.
 
 ## Commands
 
@@ -29,9 +29,10 @@ into `docs/ai/commands/*`. Available: `symphony`, `codex-plan`, `build`,
 - Planning and correctness/security review run through Codex
   (`docs/ai/agents/cli.md`, `docs/ai/agents/codex-plan.md`,
   `docs/ai/agents/review-correctness.md`, `docs/ai/agents/review-security.md`).
-- Implementation and design review run on a strong model
-  (`docs/ai/agents/claude-build.md`, `docs/ai/agents/review-design.md`).
+- Implementation and design review use the tracked Cursor agents `build` and
+  `review-design` (`docs/ai/agents/build.md`,
+  `docs/ai/agents/review-design.md`).
 
-Model policy is strong-only, with intelligence scaled by `effort`
-(`docs/ai/commands/choose-model.md`). Do not restate the rules in your reply —
-follow the referenced files.
+Resolve model roles and effort through config and
+`docs/ai/commands/choose-model.md`. Do not restate rules in replies; follow the
+referenced files.

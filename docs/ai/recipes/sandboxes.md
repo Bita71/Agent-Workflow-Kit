@@ -65,18 +65,7 @@ is the template, passed to the Claude CLI via `--settings`:
       "allowWrite": ["./"],
       "denyRead": ["~/.ssh", "~/.aws", "~/.gnupg", "~/.config/gh"]
     },
-    "network": {
-      "allowedDomains": [
-        "registry.npmjs.org",
-        "registry.yarnpkg.com",
-        "*.npmjs.com",
-        "*.yarnpkg.com",
-        "github.com",
-        "raw.githubusercontent.com",
-        "objects.githubusercontent.com",
-        "codeload.github.com"
-      ]
-    }
+    "network": { "allowedDomains": [] }
   }
 }
 ```
@@ -84,8 +73,9 @@ is the template, passed to the Claude CLI via `--settings`:
 - **`allowWrite: ["./"]`** — writes only inside the worktree.
 - **`denyRead`** — agents cannot read credential dirs even though they can read the
   repo. Extend this list; never shrink it.
-- **`network.allowedDomains`** — only the package registries and source hosts the
-  build needs. Add your registry/proxy; keep it tight. Note the model API host is
+- **`network.allowedDomains`** — empty by default. Generate or add only the package
+  registries and source hosts the selected ecosystem needs; keep it tight and keep
+  `RUNNER_NETWORK_ALLOWED_DOMAINS` in sync. Note the model API host is
   reached by the CLI process, not the sandboxed child, so it need not be listed.
 
 Codex's read-only config template is `.codex/config.toml`:
@@ -110,7 +100,7 @@ sandbox-specific ones:
   link step) — run setup with the sandbox disabled. Do **not** symlink the
   dependency dir from `main`: build tools write inside it (temp caches), and a write
   through the symlink lands in `main` and gets blocked. Use a real install.
-- **git operations outside the worktree** (apply into the main checkout, rebase,
+- **git operations outside the worktree** (apply into the base checkout, rebase,
   `worktree remove`, `branch -D`) need the sandbox disabled.
 - **The check command may scan sibling worktrees.** A formatter/linter with no path
   argument walks the whole tree from cwd, including other worktrees; a broken file
