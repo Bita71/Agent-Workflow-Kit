@@ -255,10 +255,11 @@ else
 fi
 
 if command -v git >/dev/null 2>&1 && git -C "$ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  if git -C "$ROOT" diff --check -- .agent-workflow-kit docs/ai AGENTS.md CLAUDE.md .agents .claude .codex .cursor MODEL_PRESETS.md README.md scripts >/dev/null; then
-    pass 'git diff whitespace check'
+  if git -C "$ROOT" diff --check -- .agent-workflow-kit docs/ai AGENTS.md CLAUDE.md .agents .claude .codex .cursor MODEL_PRESETS.md README.md scripts >/dev/null && \
+     git -C "$ROOT" diff --cached --check -- .agent-workflow-kit docs/ai AGENTS.md CLAUDE.md .agents .claude .codex .cursor MODEL_PRESETS.md README.md scripts >/dev/null; then
+    pass 'staged and unstaged git diff whitespace checks'
   else
-    fail 'git diff whitespace check'
+    fail 'staged or unstaged git diff whitespace check'
   fi
 fi
 
