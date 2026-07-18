@@ -1,107 +1,119 @@
 # Agent Workflow Kit
 
-A portable setup for agent-driven software development in Cursor, Claude Code, and Codex.
+A portable operating system for agent-driven software development across Claude
+Code, Codex, and Cursor. It gives you a disciplined pipeline for planning,
+building, reviewing, and shipping code changes — plus an unattended night runner
+for batch work.
 
-It provides a small operating system for planning, building, reviewing, and verifying code changes.
+The design principle: **one source of truth, thin adapters.** All the logic —
+rules, skills, commands, agent roles — lives in `docs/ai/`. Each tool points there
+through a small adapter, so there's no duplicated logic to drift.
 
-## What Is Included
-
-- `.cursor/` - Cursor agents, commands, skills, and rules.
-- `.claude/` - Claude Code agents, commands, skills, and rules.
-- `AGENTS.md` - Codex-compatible repository instructions and workflow map.
-- `CLAUDE.md` - Short entrypoint for Claude Code that points into `.claude/`.
-- `MODEL_PRESETS.md` - per-tool model options and balanced defaults.
-- `LICENSE` - MIT license.
-
-## Quick Start
-
-The package includes an MIT license. Replace `LICENSE` if you prefer another open-source license.
-
-If the target repository already has `.cursor`, `.claude`, `AGENTS.md`, or `CLAUDE.md`, merge files manually instead of overwriting existing instructions.
-
-### Cursor
-
-```bash
-cp -R .cursor AGENTS.md MODEL_PRESETS.md /path/to/your/repo/
-```
-
-Open the repository in Cursor and use the slash commands:
+## What's included
 
 ```text
-/plan -> /build -> /review -> manual fixes -> /verify
+docs/ai/            Source of truth (rules, skills, commands, agents, recipes, artifacts)
+AGENTS.md           Codex adapter → docs/ai
+CLAUDE.md           Claude Code adapter → docs/ai
+.claude/            Claude commands + design-review subagent + settings example
+.codex/             Codex config + custom subagents (toml)
+.agents/skills/     Codex repo-scoped skill adapters
+.cursor/            Cursor rules + commands
+night-runner/       Config templates for the unattended batch runner
+MODEL_PRESETS.md    Model + effort defaults (editable)
+LICENSE             MIT
 ```
 
-### Claude Code
+## Quick start
+
+If the target repo already has any of these files, **merge manually** instead of
+overwriting your instructions.
 
 ```bash
-cp -R .claude CLAUDE.md MODEL_PRESETS.md /path/to/your/repo/
+# Everything (recommended)
+cp -R docs .claude .codex .agents .cursor night-runner \
+      AGENTS.md CLAUDE.md MODEL_PRESETS.md LICENSE /path/to/your/repo/
+
+# Or per tool — docs/ai is required in every case:
+cp -R docs .claude CLAUDE.md /path/to/your/repo/                 # Claude Code
+cp -R docs .codex .agents AGENTS.md /path/to/your/repo/          # Codex
+cp -R docs .cursor /path/to/your/repo/                           # Cursor
 ```
 
-Open the repository with Claude Code. It reads `CLAUDE.md` and discovers agents, commands, and skills in `.claude/`.
+Then customize (see [Make it yours](#make-it-yours)) — at minimum, define your
+`<check>` command and fill in `docs/ai/rules/coding-rules.md`.
 
-### Codex
+## The workflow
 
-```bash
-cp AGENTS.md MODEL_PRESETS.md /path/to/your/repo/
-```
-
-Codex reads `AGENTS.md` as repository instructions.
-
-### All Tools
-
-```bash
-cp -R .cursor .claude AGENTS.md CLAUDE.md MODEL_PRESETS.md LICENSE /path/to/your/repo/
-```
-
-## Recommended Flow
+The core loop is one pattern repeated: **produce → verify → fix → repeat**. Only
+the actor, the judge, and the exit condition change.
 
 ```text
-plan -> build -> review -> manual fixes -> verify
+clarify → plan → build → verify → review → triage → fix → done
 ```
 
-- `plan` before multi-file or ambiguous work.
-- `build` for implementation.
-- `review` after implementation, using correctness and design lenses.
-- `verify` as the final factual validation step.
-- `learn` after a useful session to propose durable rule or workflow improvements.
+- **`/symphony`** runs the whole thing under one orchestrator, with human gates and
+  a resumable run file. The orchestrator never writes code itself — it delegates to
+  a builder, has Codex plan and review, runs a design-review subagent, deduplicates
+  findings, and loops fixes until done. See `docs/ai/commands/symphony.md`.
+- Or drive the stages by hand: `/codex-plan` → `/build` → `/review-full`, fixing in
+  between.
 
-## Model Defaults
+Roles are split by strength: **Codex** plans and does correctness/security review;
+a **strong model** builds and does design review. The human is the conductor at the
+gates.
 
-Base `.cursor/agents` and `.claude/agents` do not pin models. This is the safest default because model IDs differ across tools and accounts.
+### Model policy
 
-Optional presets for Cursor and Claude Code (balanced, GPT-only, Claude-heavy, opus-heavy) are documented in `MODEL_PRESETS.md`.
+Strong models only; intelligence is scaled by a `reasoning effort` knob, not by
+downgrading the model. Default effort is `high`; raise it with the cost of being
+wrong. Full guidance in `docs/ai/commands/choose-model.md` and `MODEL_PRESETS.md`.
 
-## How The Workflow Works
+## Night runner
 
-1. Clarify only blocking ambiguity.
-2. Route the task by complexity: standard, complex, or hardcore.
-3. Use exactly one builder per build task.
-4. Review with two independent passes: correctness and design.
-5. Verify facts: changed files, exports, import boundaries, security grep, dependency audit, and the repository's standard check.
+An unattended, two-phase batch pipeline: you drop task **briefs** in a folder, a
+planner turns each into a plan (you review the plans), then a builder implements +
+reviews + fixes each one in its own isolated git worktree — never touching `main`.
 
-## Repository Assumptions
+The kit ships this as a **pattern plus config templates**, not runnable code: the
+loop maps 1:1 onto the same agents, skills, and CLI calls the rest of the kit
+already defines, so you wire it to your task runner of choice.
 
-This setup is intentionally generic. After copying, customize:
+- `docs/ai/recipes/night-runner.md` — the full pattern: two phases, brief
+  lifecycle, crash recovery, rate-limit handling, safety model.
+- `docs/ai/recipes/night-runner-briefs.md` — how to write briefs that survive an
+  agent that can't ask you questions.
+- `night-runner/` — `sandbox.settings.json` and `briefs/TEMPLATE.md`.
 
-- architecture boundaries;
-- test commands;
-- lint or typecheck commands;
-- UI and accessibility conventions;
-- import rules;
-- documentation requirements.
+## Sandboxes
 
-Targets to customize per tool:
+Agent workflows stack three independent sandbox layers — the agent host's, Codex's
+own read-only sandbox, and the runner's filesystem/network allowlist. Confusing
+them wastes hours (a blocked write looks like a broken CLI). `docs/ai/recipes/sandboxes.md`
+explains each layer, how they interact, and the symptoms that tell them apart.
 
-- Cursor: `.cursor/rules/main.mdc`;
-- Claude Code: `CLAUDE.md` and `.claude/rules/*`;
-- Codex: `AGENTS.md`.
+## Make it yours
 
-## Non-Goals
+The kit is intentionally generic. After copying, customize:
 
-- Not tied to any specific product domain.
+- **`<check>`** — your standard verify command (lint + typecheck + tests). Define it
+  in `CLAUDE.md` / `AGENTS.md`; it's referenced throughout as `<check>`.
+- **`docs/ai/rules/coding-rules.md`** — a template: your architecture boundaries,
+  types, UI/i18n, styling, and code-style conventions.
+- **`docs/ai/rules/project.md`** — tighten the tool-agnostic invariants for your
+  team.
+- **`docs/ai/rules/testing.md`** — swap in your test runner and libraries.
+- **`MODEL_PRESETS.md`** and **`.codex/config.toml`** — pin the models/effort your
+  accounts use.
+- **`night-runner/sandbox.settings.json`** — your registry hosts and secret paths.
+
+## Non-goals
+
+- Not tied to any product domain.
 - No secrets, local paths, private URLs, or project-specific business rules.
-- No new dependencies required.
+- No new runtime dependencies required.
 
 ## Source
 
-This workflow was extracted from a real production project and cleaned up for open-source use.
+This workflow was extracted from a real production project and cleaned up for
+open-source use. The `LICENSE` is MIT — replace it if you prefer another.

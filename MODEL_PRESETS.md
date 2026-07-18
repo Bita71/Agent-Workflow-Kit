@@ -1,90 +1,61 @@
 # Model Presets
 
-Model names change over time and differ across tools. Treat the values below as editable defaults.
+Model names change over time and differ across tools and accounts. Treat every
+value here as an **editable default**. The authoritative, self-updating guidance
+lives in `docs/ai/commands/choose-model.md` (it fetches current model lists) — this
+file is the quick reference.
 
-The base `.cursor/agents` and `.claude/agents` do not pin models. This is the safest copy-ready default because model IDs vary across accounts and tool versions.
+## Policy: strong-only + effort
 
-If you want to pin models, edit the agent frontmatter directly.
+This kit does **not** route work across weak/strong models. It uses one strong
+model per role and scales intelligence with a `reasoning effort` knob. A large but
+mechanical task is a strong model at low effort — not a weaker model. Pick the
+model by role, the effort by the **cost of being wrong** and the uncertainty, not
+by task size.
 
-## Cursor
+| Role                    | Default model | Notes                                            |
+| ----------------------- | ------------- | ------------------------------------------------ |
+| Builder / design review | `opus`        | Implementation and design review (Claude).       |
+| Planner / correctness   | `gpt-5.5`     | Planning and correctness/security review (Codex).|
+| Hardest, long runs      | `fable`       | Reserve for the most complex, long agentic work. |
+| Fast mechanical work    | `haiku`       | Renames, boilerplate; does not take `effort`.    |
 
-Cursor uses full model slugs.
+Model IDs (editable): `claude-opus-4-8`, `claude-sonnet-5`, `claude-fable-5`,
+`claude-haiku-4-5-20251001`, `gpt-5.5`. Versioned lines change over time — verify
+current IDs and update `docs/ai/commands/choose-model.md` when a generation flips.
 
-### Balanced (Cursor)
+## Effort scale
 
-| Agent | Model |
-| --- | --- |
-| `build-standard` | `gpt-5.5-high` |
-| `build-complex` | `claude-opus-4-7-thinking-high` |
-| `build-hardcore` | `claude-opus-4-7-thinking-high` |
-| `plan-gpt` | `gpt-5.5-high` |
-| `plan-claude` | `claude-opus-4-7-thinking-high` |
-| `review-correctness` | `gpt-5.5-high` |
-| `review-design` | `claude-opus-4-7-thinking-high` |
-| `verifier` | `gpt-5.5-high` |
+Single scale, default `high` everywhere.
 
-Example frontmatter in `.cursor/agents/*.md`:
+| Effort   | When                                                                  |
+| -------- | --------------------------------------------------------------------- |
+| `low`    | Unambiguous steps, few branches, the edit is obvious.                 |
+| `medium` | Ordinary work: real logic, but moderate risk and uncertainty.        |
+| `high`   | Non-trivial logic, correctness matters, many edge cases. **Default.** |
+| `xhigh`  | Long agentic/coding runs (30+ min), broad exploration.               |
+| `max`    | Highest cost of error: security, money, migrations, subtle edges.    |
 
-```yaml
----
-name: build-standard
-model: gpt-5.5-high
-description: Standard builder for routine tasks.
----
-```
+`max` is expensive — don't make it the default; compare it against `xhigh` on a
+real task. `minimal` is not usable through `codex exec` (the CLI's default tools
+reject it). See `docs/ai/agents/cli.md` for the Codex effort details.
 
-### GPT-Only (Cursor)
+## Per-tool notes
 
-Set every Cursor agent to:
+- **Claude Code** — the `review-design` subagent pins `model: opus` in its
+  frontmatter (`.claude/agents/review-design.md`). Everything else runs on the
+  session model; scale with effort. Change the pin if your account differs.
+- **Codex** — model and effort are set on the CLI (`.codex/config.toml`, profiles,
+  or `-m` / `-c model_reasoning_effort=` flags), and per-subagent in
+  `.codex/agents/*.toml`. Not read from `AGENTS.md`.
+- **Cursor** — Cursor uses full model slugs. If you want to pin a model per
+  command, do it in the Cursor UI; the kit's `.cursor` adapters don't hardcode
+  models so the setup stays portable across accounts.
 
-```yaml
-model: gpt-5.5-high
-```
+## ultracode (Claude)
 
-### Claude-Heavy (Cursor)
-
-Set every Cursor agent to:
-
-```yaml
-model: claude-opus-4-7-thinking-high
-```
-
-Keep `verifier` on `gpt-5.5-high` unless your repository verification requires long-context reasoning.
-
-## Claude Code
-
-Claude Code uses short aliases: `haiku`, `sonnet`, `opus`. Pick the strongest model you are willing to run for each role.
-
-### Balanced (Claude Code)
-
-| Agent | Model |
-| --- | --- |
-| `build-standard` | `sonnet` |
-| `build-complex` | `opus` |
-| `build-hardcore` | `opus` |
-| `plan-gpt` | `sonnet` |
-| `plan-claude` | `opus` |
-| `review-correctness` | `sonnet` |
-| `review-design` | `opus` |
-| `verifier` | `sonnet` |
-
-Example frontmatter in `.claude/agents/*.md`:
-
-```yaml
----
-name: build-standard
-description: Standard builder for routine tasks.
-model: sonnet
-tools: Read, Edit, Write, Bash, Grep, Glob
----
-```
-
-Note: `plan-gpt` keeps the name for workflow consistency across tools. In Claude Code it runs on Claude models; the "gpt" name only marks the role (structured planner) vs. `plan-claude` (architecture escalator).
-
-### Opus-Heavy (Claude Code)
-
-Set every Claude Code agent to `opus` for maximum quality.
-
-## Codex
-
-Codex does not read `model:` from `AGENTS.md`. Model selection happens in the Codex CLI (profiles, `config.toml`, or CLI flags). See `AGENTS.md` for Codex-facing workflow instructions.
+Not a separate effort level — it's `xhigh` **plus** standing permission to run
+multi-agent workflows (fan-out, adversarial verify, synthesis). Use it when the
+work genuinely splits into independent parts (audit, migration, broad sweep, N
+independent checks). For sequential, subtle logic, use `max` instead. Details in
+`docs/ai/commands/choose-model.md`.

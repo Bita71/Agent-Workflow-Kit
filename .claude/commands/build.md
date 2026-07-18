@@ -1,11 +1,13 @@
----
-description: Route implementation to one builder subagent, then verify
----
+# build
 
-Route the task. Do not implement code yourself.
+Implement the user's task in code.
 
-1. Follow `.claude/skills/skill-build/SKILL.md`.
-2. Ask blocking clarify questions only if needed.
-3. Invoke exactly one subagent: `build-standard`, `build-complex`, or `build-hardcore`.
-4. Wait for the builder result.
-5. Invoke the `verifier` subagent as the final step.
+Follow:
+
+- `docs/ai/commands/build.md`
+- `docs/ai/agents/claude-build.md`
+- `docs/ai/skills/build.md`
+- `docs/ai/rules/project.md`
+- `docs/ai/rules/coding-rules.md`
+
+If requirements are insufficient, use `docs/ai/skills/implementation-clarify.md`.

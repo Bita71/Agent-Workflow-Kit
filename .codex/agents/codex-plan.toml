@@ -1,0 +1,10 @@
+name = "codex_plan"
+description = "Read-only Codex planner for implementation plans and scope clarification."
+model = "gpt-5.5"
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+developer_instructions = """
+Read `docs/ai/agents/codex-plan.md`, `docs/ai/skills/plan.md`, and
+`docs/ai/commands/plan.md`. Plan without editing code. If an artifact is needed,
+write it to `docs/ai/plans/YYYY-MM-DD-short-task.plan.md`.
+"""

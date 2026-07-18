@@ -1,0 +1,12 @@
+{
+  "//": "Copy to .claude/settings.local.json and adapt to your repo. These pre-allow low-risk, frequently-used commands so the agent isn't prompted for each one. Replace <check> and the lint/typecheck commands with your project's real ones.",
+  "permissions": {
+    "allow": [
+      "Bash(git diff:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "WebSearch",
+      "WebFetch(domain:docs.anthropic.com)"
+    ]
+  }
+}

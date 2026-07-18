@@ -1,59 +1,41 @@
-# Project Instructions
+# Claude Adapter
 
-This project uses an agent workflow with a plan, build, review, verify loop.
+`docs/ai` is the source of truth for this project. Before working, read:
 
-## Core Workflow
+- `docs/ai/README.md` — map of the AI surface.
+- `docs/ai/rules/project.md` — tool-agnostic invariants.
+- `docs/ai/rules/coding-rules.md` — this stack's conventions.
+- `docs/ai/rules/commit-message.md` — Conventional Commits.
 
-```text
-plan -> build -> review -> manual fixes -> verify
-```
+`<check>` is this repo's standard verify command (lint + typecheck + tests). Define
+it here and run it after substantive code changes. Do not commit or push without an
+explicit request.
 
-## Operating Rules
+## Claude's role
 
-- Keep changes narrow and tied to the user's request.
-- Read relevant files before editing.
-- Ask only blocking questions; if the task is clear, proceed.
-- Do not add dependencies, commit, or push unless explicitly requested.
-- Prefer existing project patterns over new abstractions.
-- Preserve user changes in a dirty working tree.
-- After any code change, invoke the `verifier` subagent.
+Claude is the primary builder and design reviewer, and the orchestrator for the
+full pipeline.
 
-## Slash Commands
+Workflows (slash commands in `.claude/commands/`, each pointing into `docs/ai`):
 
-| Command | Purpose |
-| --- | --- |
-| `/plan` | Plan via the `plan-gpt` and (on escalation) `plan-claude` subagents. |
-| `/plan-manual` | Plan in the current chat. |
-| `/build` | Route to one builder subagent, then verify. |
-| `/build-manual` | Implement in the current chat, then verify. |
-| `/review` | Run `review-correctness` and `review-design` in parallel. |
-| `/verify` | Run the `verifier` subagent. |
-| `/learn` | Propose durable workflow or rule improvements. |
-
-## Subagents
-
-See `.claude/agents/*.md` for roles, tool access, and usage criteria.
-
-## Skills
-
-See `.claude/skills/*` for the planning, build-routing, and clarify workflows.
+- `/symphony` — drive the whole task through the pipeline.
+- `/build` — implement a task.
+- `/codex-plan` — orchestrate planning through Codex.
+- `/review-full` — parallel correctness/security + design review.
+- `/review-design` — design review only.
+- `/choose-model` — recommend a model/effort.
+- `/learn` — propose durable repo improvements.
+- `/ai-audit`, `/deps-audit`, `/apply-worktree`.
 
 ## Rules
 
-See `.claude/rules/*` for coding invariants. Extend with project-specific rules.
-
-## Repository Commands
-
-Replace this section with your repository's actual commands:
-
-```bash
-# build
-# test
-# lint
-# typecheck
-# full ci
-```
-
-## Architecture Notes
-
-Replace this section with a short map of your codebase: key modules, public APIs, tests, data flow. Keep this file under 200 lines.
+- For implementation, follow `docs/ai/agents/claude-build.md` and
+  `docs/ai/skills/build.md`.
+- For design review, follow `docs/ai/agents/review-design.md`.
+- Do not plan by hand: planning is Codex's job — orchestrate it via `/codex-plan`.
+- Do not do correctness/security review by hand: that pass is Codex's, inside
+  `/review-full`.
+- Take Codex/Claude CLI invocations only from `docs/ai/agents/cli.md` — do not
+  invent flags.
+- Run `<check>` after substantive code changes.
+- Do not commit or push without an explicit request.

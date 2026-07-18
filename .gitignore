@@ -1,0 +1,10 @@
+# Night runner working dirs — briefs and logs are not committed
+night-runner/briefs/new/
+night-runner/briefs/planned/
+night-runner/briefs/in-progress/
+night-runner/briefs/done/
+night-runner/briefs/manual-review/
+night-runner/logs/
+
+# Local settings
+.claude/settings.local.json
