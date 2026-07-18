@@ -79,6 +79,18 @@ fi
 [[ -n "$DEPENDENCY_ECOSYSTEM" ]] || fail 'DEPENDENCY_ECOSYSTEM must be configured'
 [[ -n "$RUNNER_NETWORK_ALLOWED_DOMAINS" ]] || fail 'RUNNER_NETWORK_ALLOWED_DOMAINS must be configured'
 
+model_config_failed=false
+for model_key in PLANNER_MODEL BUILDER_MODEL CORRECTNESS_MODEL SECURITY_MODEL \
+  DESIGN_MODEL BALANCED_MODEL LONG_RUN_MODEL MECHANICAL_MODEL; do
+  if [[ -z "$(config_value "$model_key")" ]]; then
+    fail "$model_key must be configured or set to auto"
+    model_config_failed=true
+  fi
+done
+if ! $model_config_failed; then
+  pass 'model preferences are centralized and complete'
+fi
+
 if [[ "$MODE" == "project" && -d "$ROOT/night-runner" ]]; then
   for runner_key in RUNNER_PLAN_COMMAND RUNNER_EXEC_COMMAND RUNNER_CLEAN_COMMAND; do
     runner_value="$(config_value "$runner_key")"

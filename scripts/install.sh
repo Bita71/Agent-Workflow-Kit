@@ -4,6 +4,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 SOURCE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 
+source_config_value() {
+  local key="$1"
+  sed -n "s/^${key}=//p" "$SOURCE_ROOT/.agent-workflow-kit/config.conf" | sed -n '1p'
+}
+
 TARGET=""
 COMPONENTS="core,claude,codex,cursor"
 CHECK_COMMAND=""
@@ -13,6 +18,14 @@ RUNNER_PLAN_COMMAND="none"
 RUNNER_EXEC_COMMAND="none"
 RUNNER_CLEAN_COMMAND="none"
 RUNNER_NETWORK_ALLOWED_DOMAINS="none"
+PLANNER_MODEL="$(source_config_value PLANNER_MODEL)"
+BUILDER_MODEL="$(source_config_value BUILDER_MODEL)"
+CORRECTNESS_MODEL="$(source_config_value CORRECTNESS_MODEL)"
+SECURITY_MODEL="$(source_config_value SECURITY_MODEL)"
+DESIGN_MODEL="$(source_config_value DESIGN_MODEL)"
+BALANCED_MODEL="$(source_config_value BALANCED_MODEL)"
+LONG_RUN_MODEL="$(source_config_value LONG_RUN_MODEL)"
+MECHANICAL_MODEL="$(source_config_value MECHANICAL_MODEL)"
 APPLY=false
 
 usage() {
@@ -218,11 +231,14 @@ SANDBOX_SOURCE="$TEMP_DIR/sandbox.settings.json"
     "RUNNER_EXEC_COMMAND=$RUNNER_EXEC_COMMAND" \
     "RUNNER_CLEAN_COMMAND=$RUNNER_CLEAN_COMMAND" \
     "RUNNER_NETWORK_ALLOWED_DOMAINS=$RUNNER_NETWORK_ALLOWED_DOMAINS" \
-    'PLANNER_MODEL=auto' \
-    'BUILDER_MODEL=auto' \
-    'CORRECTNESS_MODEL=auto' \
-    'SECURITY_MODEL=auto' \
-    'DESIGN_MODEL=auto' \
+    "PLANNER_MODEL=$PLANNER_MODEL" \
+    "BUILDER_MODEL=$BUILDER_MODEL" \
+    "CORRECTNESS_MODEL=$CORRECTNESS_MODEL" \
+    "SECURITY_MODEL=$SECURITY_MODEL" \
+    "DESIGN_MODEL=$DESIGN_MODEL" \
+    "BALANCED_MODEL=$BALANCED_MODEL" \
+    "LONG_RUN_MODEL=$LONG_RUN_MODEL" \
+    "MECHANICAL_MODEL=$MECHANICAL_MODEL" \
     'DEFAULT_EFFORT=high' \
     'CODEX_MAX_EFFORT=xhigh'
 } > "$CONFIG_SOURCE"

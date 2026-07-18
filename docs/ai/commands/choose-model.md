@@ -6,17 +6,19 @@ Do not edit code or configuration.
 ## Process
 
 1. Read `.agent-workflow-kit/config.conf` and `MODEL_PRESETS.md`.
-2. Identify the role: planner, builder, correctness reviewer, security reviewer,
-   or design reviewer.
+2. Identify the primary role: planner, builder, correctness reviewer, security
+   reviewer, or design reviewer.
 3. If its config value is `auto` or the user asks for a current recommendation,
    fetch the official model lists for the applicable hosts:
    - Claude: `https://docs.anthropic.com/en/docs/about-claude/models/overview`
    - OpenAI: `https://platform.openai.com/docs/models`
 4. Assess logic complexity, cost of error, breadth, uncertainty, tool use, and
    expected run duration.
-5. Recommend one current model for the role (or keep the configured pin) and one
-   workflow effort label: `low`, `medium`, `high`, or `max`.
-6. Resolve host syntax through `docs/ai/agents/cli.md`. For Codex `max`, pass the
+5. Keep the configured role model unless evidence justifies one of the configured
+   `BALANCED_MODEL`, `LONG_RUN_MODEL`, or `MECHANICAL_MODEL` overrides. State why
+   the override is safer or more efficient for this task.
+6. Recommend one workflow effort label: `low`, `medium`, `high`, or `max`.
+7. Resolve host syntax through `docs/ai/agents/cli.md`. For Codex `max`, pass the
    current `CODEX_MAX_EFFORT` value rather than assuming `max` is accepted.
 
 Do not maintain fallback model IDs or prices in this command. If current model

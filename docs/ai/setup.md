@@ -56,7 +56,10 @@ Edit `.agent-workflow-kit/config.conf` in the target repository:
   audits.
 - `RUNNER_*` — optional runner plan/execute/clean commands and its sandbox network
   allowlist. They stay `none` unless the runner component is enabled.
-- `*_MODEL` — `auto` to inherit the account default, or one current model ID.
+- `*_MODEL` — the source config preserves editable preferred defaults; use `auto`
+  to inherit the target account default or replace a pin with one current ID.
+- `BALANCED_MODEL`, `LONG_RUN_MODEL`, `MECHANICAL_MODEL` — optional overrides for
+  clear routine work, hardest long-running work, and low-risk repetition.
 - `DEFAULT_EFFORT` and `CODEX_MAX_EFFORT` — host-supported effort values.
 
 Model IDs are intentionally absent from the shared docs. Pin them once in this

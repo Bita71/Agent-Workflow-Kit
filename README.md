@@ -75,9 +75,11 @@ gates.
 
 ### Model policy
 
-Model roles and effort live only in `.agent-workflow-kit/config.conf`. `auto`
-inherits the host/account default; pin current IDs there, never across adapters.
-Guidance: `docs/ai/commands/choose-model.md` and `MODEL_PRESETS.md`.
+Model roles, preferred overrides, and effort live only in
+`.agent-workflow-kit/config.conf`. The source config preserves the kit owner's
+editable preferences; a target project may use `auto` to inherit its host/account
+default. Never duplicate pins across adapters. Guidance:
+`docs/ai/commands/choose-model.md` and `MODEL_PRESETS.md`.
 
 ## Night runner
 
